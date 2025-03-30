@@ -1,22 +1,18 @@
+from website.website import WebsiteInfo
 import sys
-from selenium import webdriver
-from website.website import Website
+import website
+import json
 
 
-def __init_driver():
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
+def main() -> None:
+    website_to_parse: str = sys.argv[1]
+    number_of_sites_to_visit = int(sys.argv[2])
 
-    return webdriver.Chrome(options=options)
-
-
-def main():
-    webdriver = __init_driver()
-    site = sys.argv[1]
-    number_of_pages_to_visit = sys.argv[2]
-    website = Website(driver=webdriver, webpage=site)
-    website.parse_links(number_of_pages_to_visit)
-    webdriver.quit()
+    website_info: WebsiteInfo = website.parse_all(
+        website_to_parse, number_of_sites_to_visit
+    )
+    website_info_json: str = json.dumps(website_info.to_dict(), indent=4)
+    print(website_info_json)
 
 
 if __name__ == "__main__":
