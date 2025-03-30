@@ -1,109 +1,178 @@
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
+from website import constants as Constants
+from selenium import webdriver
+from dataclasses import dataclass
+from typing import Optional
 import re
+import urllib.parse as urlparse
 
 
-class Website:
+@dataclass(frozen=True)
+class WebsiteInfo:
+    """The class contains the properties required for the parsing of the website.
 
-    def __init__(self, driver, webpage):
-        self.__driver = driver
-        self.__webpage = webpage
+    Attributes:
+        found_urls (set[str]): A set of all the URLs found during the parsing process
+        found_emails (dict[str, str]): A dictionary of all the emails found in the HTML content. Key: email, Value: Website URL
 
-        self.__found_urls = []
-        self.__visited_urls = []
-        self.__number_of_pages_visited = 1
-        self.__found_emails = []
+    Methods:
+        to_dict(): A method that converts the WebsiteInfo object into a dictionary for JSON serialization
+    """
 
-    @property
-    def driver(self):
-        return self.__driver
+    found_urls: set[str]
+    found_emails: dict[str, str]
 
-    @driver.setter
-    def driver(self, new_driver):
-        self.__driver = new_driver
+    def to_dict(self) -> dict:
+        """Convert the WebsiteInfo object into a dictionary for JSON serialization."""
+        return {
+            "found_urls": list(self.found_urls),
+            "found_emails": self.found_emails,
+        }
 
-    @property
-    def webpage(self):
-        return self.__webpage
 
-    @webpage.setter
-    def webpage(self, new_webpage):
-        self.__webpage = new_webpage
+# PUBLIC METHODS
+def parse(website: str, info: Optional[WebsiteInfo] = None) -> WebsiteInfo:
+    """Parse only the given website for information.
 
-    @property
-    def found_urls(self):
-        return self.__found_urls
+    Arguments:
+        website (string): The website to parse
 
-    @found_urls.setter
-    def found_urls(self, new_found_urls: list):
-        self.__found_urls = new_found_urls
+    Returns:
+        WebsiteInfo: The information found during the parsing process
+    """
 
-    @property
-    def visited_urls(self):
-        return self.__visited_urls
+    if info is None:
+        new_info = WebsiteInfo(set(), dict())
+    else:
+        new_info: WebsiteInfo = info
 
-    @visited_urls.setter
-    def visited_urls(self, new_visited_urls: list):
-        self.__visited_urls = new_visited_urls
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")
+    driver = webdriver.Chrome(options=options)
 
-    @property
-    def number_of_pages_visited(self):
-        return self.__number_of_pages_visited
+    driver.get(website)
+    website_page_source: str = driver.page_source
+    content = BeautifulSoup(website_page_source, Constants.BEAUTIFULSOUP_HTML_PARSER)
 
-    @number_of_pages_visited.setter
-    def number_of_pages_visited(self, new_number_of_pages_visited: int):
-        self.__number_of_pages_visited = new_number_of_pages_visited
+    new_info.found_urls.update(get_links_from_html_content(website, content, new_info))
+    new_info.found_emails.update(parse_for_emails(website, content, new_info))
 
-    @property
-    def number_of_pages_visited(self):
-        return self.__number_of_pages_visited
+    driver.quit()
+    return new_info
 
-    @number_of_pages_visited.setter
-    def number_of_pages_visited(self, new_number_of_pages_visited):
-        self.__number_of_pages_visited = new_number_of_pages_visited
 
-    def parse_links(self, number_of_pages_to_visit: int) -> None:
-        content = self.__get_site_content()
-        main_site_request_html = BeautifulSoup(content, "html.parser")
-        self.__get_links_from_html(main_site_request_html)
+def parse_all(website: str, number_of_sites_to_visit: int) -> WebsiteInfo:
+    """Parse for links in the given website, then recursively parse the found sites for information.
 
-        # self.parse_for_emails(main_site_request_html)
+    Arguments:
+        website (str): The "root" website to parse
+        number_of_sites_to_visit (int): The maximum number of sites to visit during parsing
 
-        self.visited_urls.append(self.webpage)
-        print(self.found_urls)
+    Returns:
+        WebsiteInfo: The information found during the parsing process
+    """
 
-        for found_url in self.found_urls:
-            if (
-                found_url not in self.visited_urls
-                and number_of_pages_to_visit != self.number_of_pages_visited
-            ):
-                self.number_of_pages_visited += 1
-                self.parse_links(number_of_pages_to_visit)
+    visited_urls = set()
+    info = WebsiteInfo(set(), dict())
 
-    def __get_site_content(self) -> str:
-        self.driver.get(self.webpage)
-        content = self.driver.page_source
-        return content
+    info: WebsiteInfo = parse(website, info)
 
-    def __get_links_from_html(self, request_html: BeautifulSoup) -> None:
-        for link_tag in request_html.find_all("a"):
-            print(link_tag)
-            if not link_tag.has_attr("href"):
-                continue
+    while len(visited_urls) != number_of_sites_to_visit - 1:
+        for found_url in info.found_urls:
+            if found_url not in visited_urls:
+                new_info: WebsiteInfo = parse(found_url)
+                visited_urls.add(found_url)
+                info.found_urls.update(new_info.found_urls)
+                info.found_emails.update(new_info.found_emails)
+                break
 
-            href = link_tag.attrs["href"]
+    return info
 
-            if href.startswith("/"):
-                found_url = self.webpage + href
 
-                if found_url not in self.found_urls and ".pdf" not in found_url:
-                    self.found_urls.append(found_url)
+def get_links_from_html_content(
+    website_url: str, content: BeautifulSoup, info: WebsiteInfo
+) -> set[str]:
+    """Get all links from the given HTML content.
 
-    # def parse_for_emails(self, site_request_html) -> None:
-    #     email_regex = r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)"
-    #     emails = re.findall(email_regex, site_request_html.decode())
+    Arguments:
+        website_url (str): The website's URL
+        content (BeautifulSoup): The HTML content to parse
+        info (WebsiteInfo): The information found during the parsing process
 
-    #     for email in emails:
-    #         if email not in self.found_emails:
-    #             self.found_emails.append(email)
+    Returns:
+        A set of all the links found in the HTML content
+    """
 
-    #     print(self.found_emails)
+    found_urls: set[str] = info.found_urls
+    hostname: str | None = urlparse.urlparse(website_url).hostname
+
+    for link_tag in content.find_all(Constants.HTML_LINK_TAG):
+        assert isinstance(link_tag, Tag)
+
+        if not link_tag.has_attr(Constants.HTML_HREF):
+            continue
+
+        href = link_tag.attrs[Constants.HTML_HREF]
+        assert isinstance(href, str)
+
+        if href.startswith(Constants.SLASH) and not is_file_url(href):
+            # Removing the last slash from the website URL if it exists to avoid double slashes
+            if website_url.endswith((Constants.SLASH)):
+                found_url: str = website_url[:-1] + href
+            else:
+                found_url = website_url + href
+            found_urls.add(found_url)
+        elif hostname is not None and hostname in href and not is_file_url(href):
+            found_urls.add(href)
+
+    return found_urls
+
+
+def is_file_url(url: str) -> bool:
+    """Check if the given URL is a file or a webpage.
+
+    Arguments:
+        url (str): The URL to check
+
+    Returns:
+        True if the URL is a file, False if it is a webpage
+    """
+
+    webpage_extensions: set[str] = Constants.WEBPAGE_EXTENSIONS
+    path: str = urlparse.urlparse(url).path
+    if Constants.EXTENSION_DOT in path:
+        extension: str = path.split(Constants.EXTENSION_DOT)[1]
+        if extension in webpage_extensions:
+            return False
+        else:
+            return True
+
+    return False
+
+
+def parse_for_emails(
+    website: str, content: BeautifulSoup, info: WebsiteInfo
+) -> dict[str, str]:
+    """Parse the given HTML content for emails.
+
+    Arguments:
+        website (str): The website's URL
+        content (BeautifulSoup): The HTML content to parse
+        info (WebsiteInfo): The information found during the parsing process
+
+    Returns:
+        A dictionary of all the emails found in the HTML content. Key: email, Value: Website URL
+    """
+
+    found_emails: dict[str, str] = info.found_emails
+    html_content: str = content.decode()
+    emails: list[str] = re.findall(Constants.EMAIL_REGEX, html_content)
+
+    for email in emails:
+        if email not in found_emails.keys():
+            found_emails[email] = website
+
+    return found_emails
+
+
+# PRIVATE METHODS
