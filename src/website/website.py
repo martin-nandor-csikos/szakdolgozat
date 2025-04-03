@@ -1,10 +1,10 @@
 from bs4 import BeautifulSoup, Tag
-from website import constants as Constants
-from selenium import webdriver
 from dataclasses import dataclass
+from selenium import webdriver
 from typing import Optional
+from urllib import parse as urlparse
+from website import constants as Constants
 import re
-import urllib.parse as urlparse
 
 
 @dataclass(frozen=True)
@@ -31,42 +31,38 @@ class WebsiteInfo:
 
 
 # PUBLIC METHODS
-def parse(website: str, info: Optional[WebsiteInfo] = None) -> WebsiteInfo:
-    """Parse only the given website for information.
+def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
+    """Parse the given website for information.
 
     Arguments:
-        website (string): The website to parse
+        website_url (str): The website's URL to parse
+        info (WebsiteInfo): Object of the already found information
 
     Returns:
         WebsiteInfo: The information found during the parsing process
     """
 
-    if info is None:
-        new_info = WebsiteInfo(set(), dict())
-    else:
-        new_info: WebsiteInfo = info
-
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
     driver = webdriver.Chrome(options=options)
 
-    driver.get(website)
+    driver.get(website_url)
     website_page_source: str = driver.page_source
     content = BeautifulSoup(website_page_source, Constants.BEAUTIFULSOUP_HTML_PARSER)
-
-    new_info.found_urls.update(get_links_from_html_content(website, content, new_info))
-    new_info.found_emails.update(parse_for_emails(website, content, new_info))
-
     driver.quit()
-    return new_info
+
+    return WebsiteInfo(
+        get_links_from_html_content(website_url, content, info),
+        parse_for_emails(website_url, content, info),
+    )
 
 
-def parse_all(website: str, number_of_sites_to_visit: int) -> WebsiteInfo:
-    """Parse for links in the given website, then recursively parse the found sites for information.
+def parse_all(website_url: str, number_of_links_to_visit: int) -> WebsiteInfo:
+    """Parse for links in the given website, then recursively parse the found links for information.
 
     Arguments:
-        website (str): The "root" website to parse
-        number_of_sites_to_visit (int): The maximum number of sites to visit during parsing
+        website_url (str): The website's URL to parse
+        number_of_links_to_visit (int): The maximum number of links to visit and parse
 
     Returns:
         WebsiteInfo: The information found during the parsing process
@@ -75,15 +71,15 @@ def parse_all(website: str, number_of_sites_to_visit: int) -> WebsiteInfo:
     visited_urls = set()
     info = WebsiteInfo(set(), dict())
 
-    info: WebsiteInfo = parse(website, info)
+    # Initial parsing of the website
+    info: WebsiteInfo = parse(website_url, info)
+    visited_urls.add(website_url)
 
-    while len(visited_urls) != number_of_sites_to_visit - 1:
+    while len(visited_urls) != number_of_links_to_visit:
         for found_url in info.found_urls:
             if found_url not in visited_urls:
-                new_info: WebsiteInfo = parse(found_url)
+                info: WebsiteInfo = parse(found_url, info)
                 visited_urls.add(found_url)
-                info.found_urls.update(new_info.found_urls)
-                info.found_emails.update(new_info.found_emails)
                 break
 
     return info
@@ -97,7 +93,7 @@ def get_links_from_html_content(
     Arguments:
         website_url (str): The website's URL
         content (BeautifulSoup): The HTML content to parse
-        info (WebsiteInfo): The information found during the parsing process
+        info (WebsiteInfo): Object of the already found information
 
     Returns:
         A set of all the links found in the HTML content
@@ -115,21 +111,25 @@ def get_links_from_html_content(
         href = link_tag.attrs[Constants.HTML_HREF]
         assert isinstance(href, str)
 
+        website_url_stripped: str = website_url.rstrip(
+            Constants.SPACE + Constants.SLASH
+        )
+        href_stripped: str = href.rstrip(Constants.SPACE + Constants.SLASH)
+
         if href.startswith(Constants.SLASH) and not is_file_url(href):
-            # Removing the last slash from the website URL if it exists to avoid double slashes
-            if website_url.endswith((Constants.SLASH)):
-                found_url: str = website_url[:-1] + href
-            else:
-                found_url = website_url + href
+            if Constants.HTML_ID not in href and Constants.HTML_CLASS not in href:
+                found_url: str = website_url_stripped + href_stripped
+                found_urls.add(found_url)
+
+        if hostname is not None and hostname in href and not is_file_url(href):
+            found_url: str = href_stripped
             found_urls.add(found_url)
-        elif hostname is not None and hostname in href and not is_file_url(href):
-            found_urls.add(href)
 
     return found_urls
 
 
 def is_file_url(url: str) -> bool:
-    """Check if the given URL is a file or a webpage.
+    """Check if the given URL is a file or not.
 
     Arguments:
         url (str): The URL to check
@@ -144,24 +144,23 @@ def is_file_url(url: str) -> bool:
         extension: str = path.split(Constants.EXTENSION_DOT)[1]
         if extension in webpage_extensions:
             return False
-        else:
-            return True
+        return True
 
     return False
 
 
 def parse_for_emails(
-    website: str, content: BeautifulSoup, info: WebsiteInfo
+    website_url: str, content: BeautifulSoup, info: WebsiteInfo
 ) -> dict[str, str]:
     """Parse the given HTML content for emails.
 
     Arguments:
-        website (str): The website's URL
+        website_url (str): The website's URL
         content (BeautifulSoup): The HTML content to parse
-        info (WebsiteInfo): The information found during the parsing process
+        info (WebsiteInfo): Object of the already found information
 
     Returns:
-        A dictionary of all the emails found in the HTML content. Key: email, Value: Website URL
+        A dictionary of all the emails found in the HTML content. Key: email, Value: URL where the email was found
     """
 
     found_emails: dict[str, str] = info.found_emails
@@ -170,7 +169,7 @@ def parse_for_emails(
 
     for email in emails:
         if email not in found_emails.keys():
-            found_emails[email] = website
+            found_emails[email] = website_url.rstrip(Constants.SPACE + Constants.SLASH)
 
     return found_emails
 
