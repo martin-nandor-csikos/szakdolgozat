@@ -52,8 +52,8 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
     driver.quit()
 
     return WebsiteInfo(
-        get_links_from_html_content(website_url, content, info),
-        parse_for_emails(website_url, content, info),
+        get_links_from_html_content(website_url, content, info.found_urls),
+        parse_for_emails(website_url, content, info.found_emails),
     )
 
 
@@ -86,7 +86,7 @@ def parse_all(website_url: str, number_of_links_to_visit: int) -> WebsiteInfo:
 
 
 def get_links_from_html_content(
-    website_url: str, content: BeautifulSoup, info: WebsiteInfo
+    website_url: str, content: BeautifulSoup, found_urls: set[str]
 ) -> set[str]:
     """Get all links from the given HTML content.
 
@@ -99,7 +99,7 @@ def get_links_from_html_content(
         A set of all the links found in the HTML content
     """
 
-    found_urls: set[str] = info.found_urls
+    new_found_urls: set[str] = found_urls
     hostname: str | None = urlparse.urlparse(website_url).hostname
 
     for link_tag in content.find_all(Constants.HTML_LINK_TAG):
@@ -114,18 +114,29 @@ def get_links_from_html_content(
         website_url_stripped: str = website_url.rstrip(
             Constants.SPACE + Constants.SLASH
         )
-        href_stripped: str = href.rstrip(Constants.SPACE + Constants.SLASH)
 
+        href_stripped: str = href.rstrip(Constants.SPACE + Constants.SLASH)
         if href.startswith(Constants.SLASH) and not is_file_url(href):
-            if Constants.HTML_ID not in href and Constants.HTML_CLASS not in href:
+            if Constants.HTML_ID in href:
+                href_stripped: str = href.split(Constants.HTML_ID)[0].rstrip(
+                    Constants.SPACE + Constants.SLASH
+                )
                 found_url: str = website_url_stripped + href_stripped
-                found_urls.add(found_url)
+            else:
+                found_url: str = website_url_stripped + href_stripped
+            new_found_urls.add(found_url)
 
         if hostname is not None and hostname in href and not is_file_url(href):
-            found_url: str = href_stripped
-            found_urls.add(found_url)
+            if Constants.HTML_ID in href:
+                href_stripped: str = href.split(Constants.HTML_ID)[0].rstrip(
+                    Constants.SPACE + Constants.SLASH
+                )
+                found_url: str = href_stripped.split(Constants.HTML_ID)[0]
+            else:
+                found_url: str = href_stripped
+            new_found_urls.add(found_url)
 
-    return found_urls
+    return new_found_urls
 
 
 def is_file_url(url: str) -> bool:
@@ -150,7 +161,7 @@ def is_file_url(url: str) -> bool:
 
 
 def parse_for_emails(
-    website_url: str, content: BeautifulSoup, info: WebsiteInfo
+    website_url: str, content: BeautifulSoup, found_emails: dict[str, str]
 ) -> dict[str, str]:
     """Parse the given HTML content for emails.
 
@@ -163,15 +174,14 @@ def parse_for_emails(
         A dictionary of all the emails found in the HTML content. Key: email, Value: URL where the email was found
     """
 
-    found_emails: dict[str, str] = info.found_emails
+    new_found_emails: dict[str, str] = found_emails
     html_content: str = content.decode()
     emails: list[str] = re.findall(Constants.EMAIL_REGEX, html_content)
 
     for email in emails:
-        if email not in found_emails.keys():
-            found_emails[email] = website_url.rstrip(Constants.SPACE + Constants.SLASH)
+        if email not in new_found_emails.keys():
+            new_found_emails[email] = website_url.rstrip(
+                Constants.SPACE + Constants.SLASH
+            )
 
-    return found_emails
-
-
-# PRIVATE METHODS
+    return new_found_emails
