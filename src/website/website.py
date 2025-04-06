@@ -5,6 +5,7 @@ from typing import Optional
 from urllib import parse as urlparse
 from website import constants as Constants
 import re
+import validators
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,8 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
     Returns:
         WebsiteInfo: The information found during the parsing process
     """
+    assert validators.url(website_url), f"Invalid URL: {website_url}"
+    assert isinstance(info, WebsiteInfo), "Invalid WebsiteInfo object"
 
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
@@ -67,6 +70,11 @@ def parse_all(website_url: str, number_of_links_to_visit: int) -> WebsiteInfo:
     Returns:
         WebsiteInfo: The information found during the parsing process
     """
+    assert validators.url(website_url), f"Invalid URL: {website_url}"
+    assert isinstance(number_of_links_to_visit, int), "Invalid number_of_links_to_visit"
+    assert (
+        number_of_links_to_visit > 0
+    ), "number_of_links_to_visit must be greater than 0"
 
     visited_urls = set()
     info = WebsiteInfo(set(), dict())
@@ -75,13 +83,18 @@ def parse_all(website_url: str, number_of_links_to_visit: int) -> WebsiteInfo:
     info: WebsiteInfo = parse(website_url, info)
     visited_urls.add(website_url)
 
-    while len(visited_urls) != number_of_links_to_visit:
+    while True:
+        if len(visited_urls) == number_of_links_to_visit:
+            break
+
         for found_url in info.found_urls:
             if found_url not in visited_urls:
                 info: WebsiteInfo = parse(found_url, info)
                 visited_urls.add(found_url)
                 break
 
+        # If there are no more new URLs to visit, break the loop
+        break
     return info
 
 
@@ -98,6 +111,9 @@ def get_links_from_html_content(
     Returns:
         A set of all the links found in the HTML content
     """
+    assert validators.url(website_url), f"Invalid URL: {website_url}"
+    assert isinstance(content, BeautifulSoup), "Invalid BeautifulSoup object"
+    assert isinstance(found_urls, set), "Invalid found_urls set"
 
     new_found_urls: set[str] = found_urls
     hostname: str | None = urlparse.urlparse(website_url).hostname
@@ -148,6 +164,7 @@ def is_file_url(url: str) -> bool:
     Returns:
         True if the URL is a file, False if it is a webpage
     """
+    assert isinstance(url, str), "Invalid URL: must be a string"
 
     webpage_extensions: set[str] = Constants.WEBPAGE_EXTENSIONS
     path: str = urlparse.urlparse(url).path
@@ -173,6 +190,9 @@ def parse_for_emails(
     Returns:
         A dictionary of all the emails found in the HTML content. Key: email, Value: URL where the email was found
     """
+    assert validators.url(website_url), f"Invalid URL: {website_url}"
+    assert isinstance(content, BeautifulSoup), "Invalid BeautifulSoup object"
+    assert isinstance(found_emails, dict), "Invalid found_emails dictionary"
 
     new_found_emails: dict[str, str] = found_emails
     html_content: str = content.decode()
