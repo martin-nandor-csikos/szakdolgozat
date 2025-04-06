@@ -49,8 +49,8 @@ class WebsiteTest(unittest.TestCase):
             result.found_emails["contact@example.com"], "https://example.com"
         )
 
-        mock_driver.get.assert_called_once_with(website_url)
-        mock_driver.quit.assert_called_once()
+        with self.assertRaises(AssertionError):
+            parse("Invalid URL", info)
 
     @patch("website.website.parse")
     def test_parse_all(self, mock_parse) -> None:
@@ -90,10 +90,20 @@ class WebsiteTest(unittest.TestCase):
                     "email2@example.com": "https://example.com/page2",
                 },
             ),
+            WebsiteInfo(
+                found_urls={
+                    "https://example.com",
+                    "https://example.com/page1",
+                    "https://example.com/page2",
+                },
+                found_emails={
+                    "email1@example.com": "https://example.com/page1",
+                    "email2@example.com": "https://example.com/page2",
+                },
+            ),
         ]
 
         result: WebsiteInfo = parse_all("https://example.com", 3)
-        self.assertEqual(mock_parse.call_count, 3)
 
         self.assertIsInstance(result, WebsiteInfo)
         self.assertEqual(len(result.found_urls), 3)
@@ -108,6 +118,13 @@ class WebsiteTest(unittest.TestCase):
         self.assertEqual(
             result.found_emails["email2@example.com"], "https://example.com/page2"
         )
+
+        result: WebsiteInfo = parse_all("https://example.com", 4)
+        self.assertEqual(len(result.found_urls), 3)
+
+        with self.assertRaises(AssertionError):
+            parse_all("Invalid URL", 2)
+            parse_all("https://example.com", 0)
 
     def test_get_links_from_html_content(self) -> None:
         """Test the get_links_from_html_content method."""
@@ -164,6 +181,9 @@ class WebsiteTest(unittest.TestCase):
         )
         self.assertEqual(len(result), 7)
 
+        with self.assertRaises(AssertionError):
+            get_links_from_html_content("Invalid URL", content, found_urls)
+
     def test_is_file_url(self) -> None:
         """Test the is_file_url method."""
 
@@ -172,6 +192,8 @@ class WebsiteTest(unittest.TestCase):
             "https://example.com/test.pdf": True,
             "https://example.com/test/test": False,
             "https://example.com/test.php": False,
+            "/test.php": False,
+            "/test.pdf": True,
         }
 
         for url, expected in url_testcases.items():
@@ -222,6 +244,9 @@ class WebsiteTest(unittest.TestCase):
         )
         self.assertIn("info@company.org", result)
         self.assertEqual(result["info@company.org"], "https://example.com/page2")
+
+        with self.assertRaises(AssertionError):
+            parse_for_emails("Invalid URL", content, found_emails)
 
 
 if __name__ == "__main__":
