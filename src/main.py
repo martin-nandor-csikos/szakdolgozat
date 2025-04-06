@@ -1,38 +1,18 @@
-import requests
-from bs4 import BeautifulSoup
+from website import WebsiteInfo, parse_all
+import json
 import sys
 
-found_urls = []
-visited_urls = []
-number_of_pages_visited = 1
 
-def find_links(webpage, number_of_pages_to_visit):
-    global number_of_pages_visited
+def main() -> None:
+    """Main function of the program where the individual methods are called."""
 
-    main_site_request = requests.get(webpage)
-    main_site_request_html = BeautifulSoup(main_site_request.text, "html.parser")
+    website_to_parse: str = sys.argv[1]
+    number_of_sites_to_visit: int = int(sys.argv[2])
 
-    for i in main_site_request_html.find_all("a"):
-        href = i.attrs["href"]
+    website_info: WebsiteInfo = parse_all(website_to_parse, number_of_sites_to_visit)
+    website_info_json: str = json.dumps(website_info.to_dict(), indent=4)
+    print(website_info_json)
 
-        if href.startswith("/"):
-            found_url = webpage + href
 
-            if (found_url not in found_urls and ".pdf" not in found_url):
-                found_urls.append(found_url)
-
-    print(f"found url size: {len(found_urls)}")
-    print(visited_urls)
-
-    parse_site_for_information(webpage)
-
-    visited_urls.append(webpage)
-    for found_url in found_urls:
-        if (found_url not in visited_urls and number_of_pages_to_visit != number_of_pages_visited):
-            number_of_pages_visited += 1
-            find_links(found_url, number_of_pages_to_visit)
-
-def parse_site_for_information(webpage):
-    pass
-
-find_links(sys.argv[1], int(sys.argv[2]))
+if __name__ == "__main__":
+    main()
