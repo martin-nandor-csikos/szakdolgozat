@@ -38,7 +38,7 @@ class WebsiteTest(unittest.TestCase):
         """
 
         website_url = "https://example.com"
-        info = WebsiteInfo(found_urls=set(), found_emails={})
+        info = WebsiteInfo(found_urls=set(), found_emails={}, found_names={})
         result: WebsiteInfo = parse(website_url, info)
 
         self.assertIsInstance(result, WebsiteInfo)
@@ -67,6 +67,7 @@ class WebsiteTest(unittest.TestCase):
                     "https://example.com/page1",
                 },
                 found_emails={"email1@example.com": "https://example.com/page1"},
+                found_names={},
             ),
             WebsiteInfo(
                 found_urls={
@@ -78,6 +79,7 @@ class WebsiteTest(unittest.TestCase):
                     "email1@example.com": "https://example.com/page1",
                     "email2@example.com": "https://example.com/page2",
                 },
+                found_names={},
             ),
             WebsiteInfo(
                 found_urls={
@@ -89,6 +91,7 @@ class WebsiteTest(unittest.TestCase):
                     "email1@example.com": "https://example.com/page1",
                     "email2@example.com": "https://example.com/page2",
                 },
+                found_names={},
             ),
             WebsiteInfo(
                 found_urls={
@@ -100,6 +103,7 @@ class WebsiteTest(unittest.TestCase):
                     "email1@example.com": "https://example.com/page1",
                     "email2@example.com": "https://example.com/page2",
                 },
+                found_names={},
             ),
         ]
 
