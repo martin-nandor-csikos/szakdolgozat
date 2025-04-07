@@ -1,10 +1,10 @@
 from bs4 import BeautifulSoup, Tag
 from dataclasses import dataclass
 from selenium import webdriver
-from typing import Optional
 from urllib import parse as urlparse
 from website import constants as Constants
 import re
+import spacy
 import validators
 
 
@@ -15,6 +15,7 @@ class WebsiteInfo:
     Attributes:
         found_urls (set[str]): A set of all the URLs found during the parsing process
         found_emails (dict[str, str]): A dictionary of all the emails found in the HTML content. Key: email, Value: Website URL
+        found_names (dict[str, str]): A dictionary of all the names found in the HTML content. Key: name, Value: Website URL
 
     Methods:
         to_dict(): A method that converts the WebsiteInfo object into a dictionary for JSON serialization
@@ -22,12 +23,14 @@ class WebsiteInfo:
 
     found_urls: set[str]
     found_emails: dict[str, str]
+    found_names: dict[str, str]
 
     def to_dict(self) -> dict:
         """Convert the WebsiteInfo object into a dictionary for JSON serialization."""
         return {
             "found_urls": list(self.found_urls),
             "found_emails": self.found_emails,
+            "found_names": self.found_names,
         }
 
 
@@ -57,6 +60,7 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
     return WebsiteInfo(
         get_links_from_html_content(website_url, content, info.found_urls),
         parse_for_emails(website_url, content, info.found_emails),
+        parse_for_names(website_url, content, info.found_names),
     )
 
 
@@ -77,7 +81,7 @@ def parse_all(website_url: str, number_of_links_to_visit: int) -> WebsiteInfo:
     ), "number_of_links_to_visit must be greater than 0"
 
     visited_urls = set()
-    info = WebsiteInfo(set(), dict())
+    info = WebsiteInfo(set(), dict(), dict())
 
     # Initial parsing of the website
     info: WebsiteInfo = parse(website_url, info)
@@ -185,7 +189,7 @@ def parse_for_emails(
     Arguments:
         website_url (str): The website's URL
         content (BeautifulSoup): The HTML content to parse
-        info (WebsiteInfo): Object of the already found information
+        found_emails (dict): Previously found emails
 
     Returns:
         A dictionary of all the emails found in the HTML content. Key: email, Value: URL where the email was found
@@ -205,3 +209,37 @@ def parse_for_emails(
             )
 
     return new_found_emails
+
+
+def parse_for_names(
+    website_url: str, content: BeautifulSoup, found_names: dict[str, str]
+) -> dict[str, str]:
+    """Parse the given HTML content for names.
+
+    Arguments:
+        website_url (str): The website's URL
+        content (BeautifulSoup): The HTML content to parse
+        found_names (dict): Previously found names
+
+    Returns:
+        A dictionary of all the names found in the HTML content. Key: name, Value: URL where the name was found
+    """
+    assert validators.url(website_url), f"Invalid URL: {website_url}"
+    assert isinstance(content, BeautifulSoup), "Invalid BeautifulSoup object"
+    assert isinstance(found_names, dict), "Invalid found_names dictionary"
+
+    new_found_names: dict[str, str] = found_names
+
+    nlp = spacy.load("hu_core_news_lg")
+    # nlp = spacy.load("en_core_web_lg")
+
+    html_content: str = content.get_text()
+    doc = nlp(html_content)
+
+    for ent in doc.ents:
+        if ent.label_ == "PER":
+            new_found_names[ent.text] = website_url.rstrip(
+                Constants.SPACE + Constants.SLASH
+            )
+
+    return new_found_names
