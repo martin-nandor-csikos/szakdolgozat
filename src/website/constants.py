@@ -14,7 +14,7 @@ SPACY_LANGUAGE_HUNGARIAN = "hu"
 SPACY_LANGUAGE_ENGLISH = "en"
 SPACY_ENTITY_PERSON_HUNGARIAN = "PER"
 SPACY_ENTITY_PERSON_ENGLISH = "PERSON"
-NAME_REGEX = r"^([A-Z][a-záéíóöőúüű]*(?:-[A-Z][a-záéíóöőúüű]*)*(?: [A-Z][a-záéíóöőúüű]*(?:-[A-Z][a-záéíóöőúüű]*)*)+)$"
+NAME_REGEX = r"^([A-Z][a-záéíóöőúüű'’]*(?:-[A-Z][a-záéíóöőúüű'’]*)*(?: [A-Z][a-záéíóöőúüű'’]*(?:[A-Z][a-záéíóöőúüű'’]*)?(?:-[A-Z][a-záéíóöőúüű'’]*)*)+)$"
 HTML_TEXT_TAGS: set[str] = {
     "p",
     "a",
