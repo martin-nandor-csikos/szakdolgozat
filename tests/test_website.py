@@ -1,8 +1,12 @@
 from bs4 import BeautifulSoup
 from unittest.mock import MagicMock, patch
+import sys
+import os
+import unittest
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 from website import is_file_url, parse, parse_all, get_links_from_html_content
 from website.website import WebsiteInfo, parse_for_emails
-import unittest
 
 
 class WebsiteTest(unittest.TestCase):
