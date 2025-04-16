@@ -1,7 +1,10 @@
 from bs4 import BeautifulSoup, Tag
 from dataclasses import dataclass
 from selenium import webdriver
+from spacy.language import Language
 from urllib import parse as urlparse
+
+from spacy.tokens.doc import Doc
 from website import constants as Constants
 import re
 import spacy
@@ -229,17 +232,37 @@ def parse_for_names(
     assert isinstance(found_names, dict), "Invalid found_names dictionary"
 
     new_found_names: dict[str, str] = found_names
+    top_level_domain: str = urlparse.urlparse(website_url).netloc.split(".")[-1]
 
-    nlp = spacy.load("hu_core_news_lg")
-    # nlp = spacy.load("en_core_web_lg")
+    # Load the spacy model based on the top-level domain (for better accuracy and detection)
+    if top_level_domain == Constants.HU_TOP_LEVEL_DOMAIN:
+        nlp: Language = spacy.load("hu_core_news_lg")
+    else:
+        nlp: Language = spacy.load("en_core_web_lg")
 
-    html_content: str = content.get_text()
-    doc = nlp(html_content)
+    # Get all the tags in the HTML content
+    for tag in content.find_all():
+        assert isinstance(tag, Tag)
 
-    for ent in doc.ents:
-        if ent.label_ == "PER":
-            new_found_names[ent.text] = website_url.rstrip(
-                Constants.SPACE + Constants.SLASH
-            )
+        # If tag is not in the text tags, skip it (likely it doesn't contain text)
+        if tag.name not in Constants.HTML_TEXT_TAGS:
+            continue
+
+        doc: Doc = nlp(tag.text.strip())
+
+        # Loop through the entities to find names
+        for ent in doc.ents:
+            if (
+                ent.label_ == Constants.SPACY_ENTITY_PERSON_HUNGARIAN
+                or ent.label_ == Constants.SPACY_ENTITY_PERSON_ENGLISH
+            ):
+                # In case there are multiple names in the entity, loop through them and add each
+                found_name: list[str] = re.findall(
+                    Constants.NAME_REGEX, ent.text.strip()
+                )
+                for name in found_name:
+                    new_found_names[name] = website_url.rstrip(
+                        Constants.SPACE + Constants.SLASH
+                    )
 
     return new_found_names
