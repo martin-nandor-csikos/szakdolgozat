@@ -261,8 +261,9 @@ def parse_for_names(
                     Constants.NAME_REGEX, ent.text.strip()
                 )
                 for name in found_name:
-                    new_found_names[name] = website_url.rstrip(
-                        Constants.SPACE + Constants.SLASH
-                    )
+                    if name not in new_found_names.keys():
+                        new_found_names[name] = website_url.rstrip(
+                            Constants.SPACE + Constants.SLASH
+                        )
 
     return new_found_names
