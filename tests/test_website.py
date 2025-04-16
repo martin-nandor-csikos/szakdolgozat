@@ -5,8 +5,15 @@ import os
 import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
-from website import is_file_url, parse, parse_all, get_links_from_html_content
-from website.website import WebsiteInfo, parse_for_emails
+from website import (
+    is_file_url,
+    parse,
+    parse_all,
+    get_links_from_html_content,
+    parse_for_names,
+    parse_for_emails,
+    WebsiteInfo,
+)
 
 
 class WebsiteTest(unittest.TestCase):
@@ -255,6 +262,63 @@ class WebsiteTest(unittest.TestCase):
 
         with self.assertRaises(AssertionError):
             parse_for_emails("Invalid URL", content, found_emails)
+
+    def test_parse_for_names(self) -> None:
+        """Test the parse_for_names method."""
+
+        html_content = """
+        <html>
+            <body>
+                <p>      John Doe      </p>
+                <h1> Random text lorem ipsum
+                
+                Jane Smith
+                
+                Lorem ipsum dolor sit amet
+                </h1>
+                <p>Joseph Gordon-Levitt</p>
+                <p>Connor McGregor</p>
+                <p>Conan O'Brien</p>
+                <h2>Invalid name</h2>
+                <a>Another Invalid Name</a>
+            </body>
+        </html>
+        """
+        found_names_empty: dict[str, str] = dict()
+        found_names: dict[str, str] = {
+            "John Doe": "https://example.com/page2",
+        }
+        content = BeautifulSoup(html_content, "html.parser")
+
+        result: dict[str, str] = parse_for_names(
+            "https://example.com", content, found_names_empty
+        )
+        self.assertIsInstance(result, dict, "The result should be a dictionary.")
+
+        self.assertIn("John Doe", result)
+        self.assertEqual(result["John Doe"], "https://example.com")
+        self.assertIn("Jane Smith", result)
+        self.assertEqual(result["Jane Smith"], "https://example.com")
+        self.assertIn("Joseph Gordon-Levitt", result)
+        self.assertEqual(result["Joseph Gordon-Levitt"], "https://example.com")
+        self.assertIn("Connor McGregor", result)
+        self.assertEqual(result["Connor McGregor"], "https://example.com")
+        self.assertIn("Conan O'Brien", result)
+        self.assertEqual(result["Conan O'Brien"], "https://example.com")
+
+        self.assertNotIn("Invalid name", result)
+        self.assertNotIn("Another Invalid Name", result)
+
+        result: dict[str, str] = parse_for_names(
+            "https://example.com", content, found_names
+        )
+        self.assertIn("John Doe", result)
+        self.assertEqual(result["John Doe"], "https://example.com/page2")
+        self.assertIn("Jane Smith", result)
+        self.assertEqual(result["Jane Smith"], "https://example.com")
+
+        with self.assertRaises(AssertionError):
+            parse_for_names("Invalid URL", content, found_names)
 
 
 if __name__ == "__main__":
