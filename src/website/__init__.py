@@ -5,4 +5,5 @@ from .website import (
     parse_for_emails,
     is_file_url,
     WebsiteInfo,
+    parse_for_names,
 )
