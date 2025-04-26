@@ -240,7 +240,14 @@ def parse_for_emails(
 
 @lru_cache(maxsize=2)
 def load_spacy_model(tld: str) -> Language:
-    """Load and cache the Spacy model based on the top-level domain."""
+    """Load and cache the Spacy model based on the top-level domain.
+
+    Arguments:
+        tld (str): The top-level domain of the website
+
+    Returns:
+        The Spacy model to be loaded
+    """
     if tld == Constants.HU_TOP_LEVEL_DOMAIN:
         return spacy.load(Constants.SPACY_MODEL_HU)
     return spacy.load(Constants.SPACY_MODEL_EN)
