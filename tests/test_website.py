@@ -13,6 +13,7 @@ from website import (
     parse_for_names,
     parse_for_emails,
     WebsiteInfo,
+    parse_for_phone_numbers,
 )
 
 
@@ -49,7 +50,9 @@ class WebsiteTest(unittest.TestCase):
         """
 
         website_url = "https://example.com"
-        info = WebsiteInfo(found_urls=set(), found_emails={}, found_names={})
+        info = WebsiteInfo(
+            found_urls=set(), found_emails={}, found_names={}, found_phone_numbers={}
+        )
         result: WebsiteInfo = parse(website_url, info)
 
         self.assertIsInstance(result, WebsiteInfo)
@@ -79,6 +82,7 @@ class WebsiteTest(unittest.TestCase):
                 },
                 found_emails={"email1@example.com": "https://example.com/page1"},
                 found_names={},
+                found_phone_numbers={},
             ),
             WebsiteInfo(
                 found_urls={
@@ -91,6 +95,20 @@ class WebsiteTest(unittest.TestCase):
                     "email2@example.com": "https://example.com/page2",
                 },
                 found_names={},
+                found_phone_numbers={},
+            ),
+            WebsiteInfo(
+                found_urls={
+                    "https://example.com",
+                    "https://example.com/page1",
+                    "https://example.com/page2",
+                },
+                found_emails={
+                    "email1@example.com": "https://example.com/page1",
+                    "email2@example.com": "https://example.com/page2",
+                },
+                found_names={"Szabó István": "https://example.com/page1"},
+                found_phone_numbers={"+36123456789": "https://example.com/page1"},
             ),
             WebsiteInfo(
                 found_urls={
@@ -103,18 +121,7 @@ class WebsiteTest(unittest.TestCase):
                     "email2@example.com": "https://example.com/page2",
                 },
                 found_names={},
-            ),
-            WebsiteInfo(
-                found_urls={
-                    "https://example.com",
-                    "https://example.com/page1",
-                    "https://example.com/page2",
-                },
-                found_emails={
-                    "email1@example.com": "https://example.com/page1",
-                    "email2@example.com": "https://example.com/page2",
-                },
-                found_names={},
+                found_phone_numbers={"+36123456789": "https://example.com/page1"},
             ),
         ]
 
@@ -319,6 +326,65 @@ class WebsiteTest(unittest.TestCase):
 
         with self.assertRaises(AssertionError):
             parse_for_names("Invalid URL", content, found_names)
+
+    def test_parse_for_phone_numbers(self) -> None:
+        """Test the parse_for_phone_numbers method."""
+
+        html_content = """
+        <html>
+            <body>
+                <p>Number with spaces: +36 30 123 4567</p>
+                <p>Number with dashes: +36-20-987-6543</p>
+                <p>Number with dash and parenthesis: +36 (70) 123-4567</p>
+                <p>Number without plus: 36305556666</p>
+                <p>Too long number: +36-30-1111-2222</p>
+                <p>Hungarian national number: 06 30 111 2222</p>
+                <p>UK international number: +44 20 1234 5678</p>
+                <p>UK national number: 020 8366 1177</p>
+            </body>
+        </html>
+        """
+        found_phone_numbers_empty: dict[str, str] = dict()
+        found_phone_numbers: dict[str, str] = {
+            "+44 20 7777 7777": "https://example.uk/page2",
+        }
+        content = BeautifulSoup(html_content, "html.parser")
+
+        result: dict[str, str] = parse_for_phone_numbers(
+            "https://example.hu", content, found_phone_numbers_empty
+        )
+        self.assertIsInstance(result, dict, "The result should be a dictionary.")
+
+        self.assertIn("+36 30 123 4567", result)
+        self.assertEqual(result["+36 30 123 4567"], "https://example.hu")
+        self.assertIn("+36 20 987 6543", result)
+        self.assertEqual(result["+36 20 987 6543"], "https://example.hu")
+        self.assertIn("+36 70 123 4567", result)
+        self.assertEqual(result["+36 70 123 4567"], "https://example.hu")
+        self.assertIn("+36 30 555 6666", result)
+        self.assertEqual(result["+36 30 555 6666"], "https://example.hu")
+        self.assertIn("+36 30 111 2222", result)
+        self.assertEqual(result["+36 30 111 2222"], "https://example.hu")
+        self.assertIn("+44 20 1234 5678", result)
+        self.assertEqual(result["+44 20 1234 5678"], "https://example.hu")
+        self.assertEqual(len(result), 6)
+
+        self.assertNotIn("36 30 555 6666", result)
+        self.assertNotIn("+36 30 1111 2222", result)
+        self.assertNotIn("06 30 111 2222", result)
+        self.assertNotIn("020 8366 1177", result)
+
+        result: dict[str, str] = parse_for_phone_numbers(
+            "https://example.uk", content, found_phone_numbers
+        )
+        self.assertIn("+44 20 7777 7777", result)
+        self.assertIn("+44 20 8366 1177", result)
+
+        self.assertNotIn("+36 30 111 2222", result)
+        self.assertNotIn("06 30 111 2222", result)
+
+        with self.assertRaises(AssertionError):
+            parse_for_phone_numbers("Invalid URL", content, found_phone_numbers)
 
 
 if __name__ == "__main__":
