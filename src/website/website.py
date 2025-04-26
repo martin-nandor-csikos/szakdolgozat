@@ -321,6 +321,10 @@ def parse_for_phone_numbers(
     html_content: str = content.decode()
     top_level_domain: str = urlparse.urlparse(website_url).netloc.split(".")[-1]
 
+    # The UK TLD is replaced with GB for phone number parsing, every other ccTLD matches the ISO code
+    if top_level_domain == Constants.UK_TOP_LEVEL_DOMAIN:
+        top_level_domain = Constants.GB_ISO_CODE
+
     # If the TLD is 2 characters long, it's a country code except for EU and SU
     # If not, it's an unknown region ("ZZ")
     if (
@@ -340,7 +344,7 @@ def parse_for_phone_numbers(
 
         # Format the phone number for consistency
         phone_number: str = phonenumbers.format_number(
-            phone_number_match.number, phonenumbers.PhoneNumberFormat.E164
+            phone_number_match.number, phonenumbers.PhoneNumberFormat.INTERNATIONAL
         )
         if phone_number not in new_found_phone_numbers.keys():
             new_found_phone_numbers[phone_number] = website_url.rstrip(
