@@ -3,6 +3,7 @@ from bs4.element import NavigableString, PageElement
 from concurrent.futures import Future, ProcessPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
+from rich.console import Console
 from selenium import webdriver
 from spacy.language import Language
 from spacy.tokens.doc import Doc
@@ -12,6 +13,8 @@ import phonenumbers
 import re
 import spacy
 import validators
+
+console = Console(log_path=False)
 
 
 @dataclass(frozen=True)
@@ -57,7 +60,7 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
     assert isinstance(info, WebsiteInfo), "Invalid WebsiteInfo object"
 
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
+    options.add_argument("--headless=new")
     driver = webdriver.Chrome(options=options)
 
     driver.get(website_url)
@@ -107,21 +110,25 @@ def parse_all(website_url: str, number_of_links_to_visit: int) -> WebsiteInfo:
     info = WebsiteInfo(set(), dict(), dict(), dict())
 
     # Initial parsing of the website
+    console.log(f"Parsing [link={website_url}]{website_url}[/link]")
     info: WebsiteInfo = parse(website_url, info)
+    console.log(f"[green]Parsing completed[/green]")
     visited_urls.add(website_url)
 
     while True:
-        if len(visited_urls) == number_of_links_to_visit:
+        if len(visited_urls) == number_of_links_to_visit or len(visited_urls) == len(
+            info.found_urls
+        ):
             break
 
         for found_url in info.found_urls:
             if found_url not in visited_urls:
+                console.log(f"Parsing [link={found_url}]{found_url}[/link]")
                 info: WebsiteInfo = parse(found_url, info)
+                console.log(f"[green]Parsing completed[/green]")
                 visited_urls.add(found_url)
                 break
 
-        # If there are no more new URLs to visit, break the loop
-        break
     return info
 
 
@@ -234,6 +241,9 @@ def parse_for_emails(
             new_found_emails[email] = website_url.rstrip(
                 Constants.SPACE + Constants.SLASH
             )
+            console.log(
+                f"[yellow]FOUND EMAIL[/]: [cyan]{email}[/] on [link={website_url}]{website_url}[/link]"
+            )
 
     return new_found_emails
 
@@ -290,16 +300,20 @@ def parse_for_names(
 
         # Loop through the entities to find names and add them to the dictionary
         for ent in doc.ents:
+            name: str = ent.text
             if (
                 (
                     ent.label_ == Constants.SPACY_ENTITY_PERSON_HUNGARIAN
                     or ent.label_ == Constants.SPACY_ENTITY_PERSON_ENGLISH
                 )
-                and name_regex.match(ent.text)
-                and ent.text not in new_found_names.keys()
+                and name_regex.match(name)
+                and name not in new_found_names.keys()
             ):
-                new_found_names[ent.text] = website_url.rstrip(
+                new_found_names[name] = website_url.rstrip(
                     Constants.SPACE + Constants.SLASH
+                )
+                console.log(
+                    f"[yellow]FOUND NAME[/]: [cyan]{name}[/] on [link={website_url}]{website_url}[/link]"
                 )
 
     return new_found_names
@@ -356,6 +370,9 @@ def parse_for_phone_numbers(
         if phone_number not in new_found_phone_numbers.keys():
             new_found_phone_numbers[phone_number] = website_url.rstrip(
                 Constants.SPACE + Constants.SLASH
+            )
+            console.log(
+                f"[yellow]FOUND PHONE NUMBER[/]: [cyan]{phone_number}[/] on [link={website_url}]{website_url}[/link]"
             )
 
     return new_found_phone_numbers
