@@ -11,6 +11,8 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
+    volumes:
+      - .:/workspaces/szakdolgozat:cached
     command: bash
     stdin_open: true
     tty: true

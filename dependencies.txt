@@ -1,6 +1,8 @@
 beautifulsoup4
 rich
 selenium
+numpy
 spacy
+huspacy
 phonenumbers
 validators

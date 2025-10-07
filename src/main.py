@@ -29,6 +29,5 @@ def main() -> None:
     )
     print(website_info_json)
 
-
 if __name__ == "__main__":
     main()

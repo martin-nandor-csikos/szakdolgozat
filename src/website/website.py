@@ -1,11 +1,9 @@
 from bs4 import BeautifulSoup, Tag, ResultSet
-from bs4.element import NavigableString, PageElement
 from concurrent.futures import Future, ProcessPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
 from rich.console import Console
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from spacy.language import Language
 from spacy.tokens.doc import Doc
 from urllib import parse as urlparse
@@ -13,10 +11,11 @@ from website import constants as Constants
 import phonenumbers
 import re
 import spacy
-import tempfile
 import validators
 
 console = Console(log_path=False)
+HU_MODEL = spacy.load(Constants.SPACY_MODEL_HU)
+EN_MODEL = spacy.load(Constants.SPACY_MODEL_EN)
 
 @dataclass(frozen=True)
 class WebsiteInfo:
@@ -44,7 +43,6 @@ class WebsiteInfo:
             "found_names": self.found_names,
             "found_phone_numbers": self.found_phone_numbers,
         }
-
 
 # PUBLIC METHODS
 def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
@@ -83,13 +81,13 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
         phone_numbers: Future[dict[str, str]] = executor.submit(
             parse_for_phone_numbers, website_url, content, info.found_phone_numbers
         )
+
         found_links: set[str] = links.result()
         found_emails: dict[str, str] = emails.result()
         found_names: dict[str, str] = names.result()
         found_phone_numbers: dict[str, str] = phone_numbers.result()
 
     return WebsiteInfo(found_links, found_emails, found_names, found_phone_numbers)
-
 
 def parse_all(website_url: str, number_of_links_to_visit: int) -> WebsiteInfo:
     """Parse for links in the given website, then recursively parse the found links for information.
@@ -109,8 +107,8 @@ def parse_all(website_url: str, number_of_links_to_visit: int) -> WebsiteInfo:
     info = WebsiteInfo(set(), dict(), dict(), dict())
 
     # Initial parsing of the website
-    console.log(f"Parsing [link={website_url}]{website_url}[/link]")
-    info: WebsiteInfo = parse(website_url, info)
+    with console.status(f"Parsing [link={website_url}]{website_url}[/link]", spinner="dots"):
+        info: WebsiteInfo = parse(website_url, info)
     console.log(f"[green]Parsing completed[/green]")
     visited_urls.add(website_url)
 
@@ -122,14 +120,13 @@ def parse_all(website_url: str, number_of_links_to_visit: int) -> WebsiteInfo:
 
         for found_url in info.found_urls:
             if found_url not in visited_urls:
-                console.log(f"Parsing [link={found_url}]{found_url}[/link]")
-                info: WebsiteInfo = parse(found_url, info)
+                with console.status(f"Parsing [link={found_url}]{found_url}[/link]", spinner="dots"):
+                    info: WebsiteInfo = parse(found_url, info)
                 console.log(f"[green]Parsing completed[/green]")
                 visited_urls.add(found_url)
                 break
 
     return info
-
 
 def get_links_from_html_content(
     website_url: str, content: BeautifulSoup, found_urls: set[str]
@@ -192,7 +189,6 @@ def get_links_from_html_content(
 
     return new_found_urls
 
-
 def is_file_url(url: str) -> bool:
     """Check if the given URL is a file or not.
 
@@ -212,7 +208,6 @@ def is_file_url(url: str) -> bool:
             return True
 
     return False
-
 
 def parse_for_emails(
     website_url: str, content: BeautifulSoup, found_emails: dict[str, str]
@@ -246,21 +241,17 @@ def parse_for_emails(
 
     return new_found_emails
 
-
 @lru_cache(maxsize=2)
-def load_spacy_model(tld: str) -> Language:
-    """Load and cache the Spacy model based on the top-level domain.
+def get_spacy_model(tld: str) -> Language:
+    """Return the Spacy model based on the top-level domain.
 
     Arguments:
         tld (str): The top-level domain of the website
 
     Returns:
-        The Spacy model to be loaded
+        The Spacy model to be returned
     """
-    if tld == Constants.HU_TOP_LEVEL_DOMAIN:
-        return spacy.load(Constants.SPACY_MODEL_HU)
-    return spacy.load(Constants.SPACY_MODEL_EN)
-
+    return HU_MODEL if tld == Constants.HU_TOP_LEVEL_DOMAIN else EN_MODEL
 
 def parse_for_names(
     website_url: str, content: BeautifulSoup, found_names: dict[str, str]
@@ -281,7 +272,7 @@ def parse_for_names(
 
     new_found_names: dict[str, str] = found_names
     top_level_domain: str = urlparse.urlparse(website_url).netloc.split(".")[-1]
-    nlp: Language = load_spacy_model(top_level_domain)
+    nlp: Language = get_spacy_model(top_level_domain)
     name_regex: re.Pattern[str] = re.compile(Constants.NAME_REGEX)
     text_tags: ResultSet[Tag] = content.find_all(
         Constants.HTML_TEXT_TAGS
@@ -316,7 +307,6 @@ def parse_for_names(
                 )
 
     return new_found_names
-
 
 def parse_for_phone_numbers(
     website_url: str, content: BeautifulSoup, found_phone_numbers: dict[str, str]
