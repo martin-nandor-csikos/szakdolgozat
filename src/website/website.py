@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from rich.console import Console
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from spacy.language import Language
 from spacy.tokens.doc import Doc
 from urllib import parse as urlparse
@@ -12,10 +13,10 @@ from website import constants as Constants
 import phonenumbers
 import re
 import spacy
+import tempfile
 import validators
 
 console = Console(log_path=False)
-
 
 @dataclass(frozen=True)
 class WebsiteInfo:
@@ -60,9 +61,9 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
     assert isinstance(info, WebsiteInfo), "Invalid WebsiteInfo object"
 
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
-    driver = webdriver.Chrome(options=options)
+    options.add_argument('--headless')
 
+    driver = webdriver.Remote("http://chrome_selenium:4444/wd/hub", options=options)
     driver.get(website_url)
     website_page_source: str = driver.page_source
     content = BeautifulSoup(website_page_source, Constants.BEAUTIFULSOUP_HTML_PARSER)
@@ -100,11 +101,9 @@ def parse_all(website_url: str, number_of_links_to_visit: int) -> WebsiteInfo:
     Returns:
         WebsiteInfo: The information found during the parsing process
     """
-    assert validators.url(website_url), f"Invalid URL: {website_url}"
+    assert validators.url(website_url), f"Invalid URL: {website_url}. Example of a valid URL: https://www.example.com"
     assert isinstance(number_of_links_to_visit, int), "Invalid number_of_links_to_visit"
-    assert (
-        number_of_links_to_visit > 0
-    ), "number_of_links_to_visit must be greater than 0"
+    assert number_of_links_to_visit > 0, f"number_of_links_to_visit must be greater than 0 (actual: {number_of_links_to_visit})"
 
     visited_urls = set()
     info = WebsiteInfo(set(), dict(), dict(), dict())
@@ -284,7 +283,7 @@ def parse_for_names(
     top_level_domain: str = urlparse.urlparse(website_url).netloc.split(".")[-1]
     nlp: Language = load_spacy_model(top_level_domain)
     name_regex: re.Pattern[str] = re.compile(Constants.NAME_REGEX)
-    text_tags: ResultSet[PageElement | Tag | NavigableString] = content.find_all(
+    text_tags: ResultSet[Tag] = content.find_all(
         Constants.HTML_TEXT_TAGS
     )
 

@@ -1,0 +1,16 @@
+services:
+  chrome_selenium:
+    image: selenium/standalone-chrome:latest
+    container_name: chrome_selenium
+    ports:
+      - "4444:4444"
+    shm_size: 2g
+    restart: unless-stopped
+
+  website_parser:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: bash
+    stdin_open: true
+    tty: true
