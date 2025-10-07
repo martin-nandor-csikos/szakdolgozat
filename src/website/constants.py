@@ -22,7 +22,6 @@ HTML_TEXT_TAGS: set[str] = {
     "p",
     "a",
     "span",
-    "div",
     "h1",
     "h2",
     "h3",
