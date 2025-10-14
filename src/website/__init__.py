@@ -1,10 +1,16 @@
 from .website import (
+    WebsiteInfo,
     parse,
     parse_all,
-    get_links_from_html_content,
-    parse_for_emails,
-    is_file_url,
-    WebsiteInfo,
-    parse_for_names,
-    parse_for_phone_numbers,
+    get_sublinks,
+    get_emails,
+    get_names,
+    get_phone_numbers,
+)
+
+from .data_extractors import (
+    get_sublinks,
+    get_emails,
+    get_names,
+    get_phone_numbers,
 )
