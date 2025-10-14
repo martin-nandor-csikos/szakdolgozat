@@ -39,14 +39,12 @@ def get_sublinks(
 
     # Loop through all the 'a' tags in the content and extract the links
     for link_tag in content.find_all(Constants.HTML_LINK_TAG):
-        assert isinstance(link_tag, Tag)
-
+        if not isinstance(link_tag, Tag):
+            raise TypeError(f"Invalid link_tag type. Expected type: Tag, actual type: {type(link_tag)}")
         if not link_tag.has_attr(Constants.HTML_HREF):
             continue
 
-        href = link_tag.attrs[Constants.HTML_HREF]
-        assert isinstance(href, str)
-
+        href: str = link_tag.attrs[Constants.HTML_HREF]
         website_url_stripped: str = website_url.rstrip(
             Constants.SPACE + Constants.SLASH
         )
@@ -143,7 +141,8 @@ def get_names(
 
     # Get all the relevant tags in the HTML content
     for tag in text_tags:
-        assert isinstance(tag, Tag)
+        if not isinstance(tag, Tag):
+            raise TypeError(f"Invalid tag type. Expected type: Tag, actual type: {type(tag)}")
 
         tag_text: str = tag.text.strip()
         if not tag_text:
@@ -214,7 +213,8 @@ def get_phone_numbers(
     for phone_number_match in phonenumbers.PhoneNumberMatcher(
         html_content, phone_number_region
     ):
-        assert isinstance(phone_number_match, phonenumbers.PhoneNumberMatch)
+        if not isinstance(phone_number_match, phonenumbers.PhoneNumberMatch):
+            raise TypeError(f"Invalid phone_number_match type. Expected type: PhoneNumberMatch, actual type: {type(phone_number_match)}")
 
         # Format the phone number for consistency
         phone_number: str = phonenumbers.format_number(
