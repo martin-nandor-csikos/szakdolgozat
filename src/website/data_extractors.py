@@ -11,8 +11,6 @@ import spacy
 import validators
 
 console = Console(log_path=False)
-HU_MODEL = spacy.load(Constants.SPACY_MODEL_HU)
-EN_MODEL = spacy.load(Constants.SPACY_MODEL_EN)
 
 def get_sublinks(
     website_url: str, content: BeautifulSoup, found_urls: set[str]
@@ -36,6 +34,7 @@ def get_sublinks(
 
     new_found_urls: set[str] = found_urls
     hostname: str | None = urlparse.urlparse(website_url).hostname
+    website_url_stripped: str = website_url.rstrip(Constants.SPACE + Constants.SLASH)
 
     # Loop through all the 'a' tags in the content and extract the links
     for link_tag in content.find_all(Constants.HTML_LINK_TAG):
@@ -45,10 +44,6 @@ def get_sublinks(
             continue
 
         href: str = link_tag.attrs[Constants.HTML_HREF]
-        website_url_stripped: str = website_url.rstrip(
-            Constants.SPACE + Constants.SLASH
-        )
-
         href_stripped: str = href.rstrip(Constants.SPACE + Constants.SLASH)
         # Extract link that starts with a slash, like "/about"
         # File links are skipped
@@ -135,9 +130,7 @@ def get_names(
     top_level_domain: str = urlparse.urlparse(website_url).netloc.split(".")[-1]
     nlp: Language = _get_spacy_model(top_level_domain)
     name_regex: re.Pattern[str] = re.compile(Constants.NAME_REGEX)
-    text_tags: ResultSet[Tag] = content.find_all(
-        Constants.HTML_TEXT_TAGS
-    )
+    text_tags: ResultSet[Tag] = content.find_all(Constants.HTML_TEXT_TAGS)
 
     # Get all the relevant tags in the HTML content
     for tag in text_tags:
@@ -154,10 +147,7 @@ def get_names(
         for ent in doc.ents:
             name: str = ent.text
             if (
-                (
-                    ent.label_ == Constants.SPACY_ENTITY_PERSON_HUNGARIAN
-                    or ent.label_ == Constants.SPACY_ENTITY_PERSON_ENGLISH
-                )
+                ent.label_ in (Constants.SPACY_ENTITY_PERSON_HUNGARIAN, Constants.SPACY_ENTITY_PERSON_ENGLISH)
                 and name_regex.match(name)
                 and name not in new_found_names.keys()
             ):
@@ -209,6 +199,8 @@ def get_phone_numbers(
     else:
         phone_number_region: str = Constants.PHONE_NUMBER_UNKNOWN_REGION
 
+    website_url_stripped: str = website_url.rstrip(Constants.SPACE + Constants.SLASH)
+
     # Iterate through the phone number matches
     for phone_number_match in phonenumbers.PhoneNumberMatcher(
         html_content, phone_number_region
@@ -221,9 +213,7 @@ def get_phone_numbers(
             phone_number_match.number, phonenumbers.PhoneNumberFormat.INTERNATIONAL
         )
         if phone_number not in new_found_phone_numbers.keys():
-            new_found_phone_numbers[phone_number] = website_url.rstrip(
-                Constants.SPACE + Constants.SLASH
-            )
+            new_found_phone_numbers[phone_number] = website_url_stripped
             console.log(
                 f"[yellow]FOUND PHONE NUMBER[/]: [cyan]{phone_number}[/] on [link={website_url}]{website_url}[/link]"
             )
@@ -251,6 +241,24 @@ def _is_file_url(url: str) -> bool:
 
     return False
 
+@lru_cache(maxsize=1)
+def _get_hu_model()-> Language:
+    """Get the hungarian Spacy model.
+
+    Returns:
+        Hungarian Spacy model
+    """
+    return spacy.load(Constants.SPACY_MODEL_HU)
+
+@lru_cache(maxsize=1)
+def _get_en_model() -> Language:
+    """Get the english Spacy model.
+
+    Returns:
+        English Spacy model
+    """
+    return spacy.load(Constants.SPACY_MODEL_EN)
+
 @lru_cache(maxsize=2)
 def _get_spacy_model(tld: str) -> Language:
     """Return the Spacy model based on the top-level domain.
@@ -264,4 +272,6 @@ def _get_spacy_model(tld: str) -> Language:
     if not isinstance(tld, str):
         raise TypeError(f"Invalid tld type. Expected type: str, actual type: {type(tld)}")
     
-    return HU_MODEL if tld == Constants.HU_TOP_LEVEL_DOMAIN else EN_MODEL
+    if tld == Constants.HU_TOP_LEVEL_DOMAIN:
+        return _get_hu_model()
+    return _get_en_model()
