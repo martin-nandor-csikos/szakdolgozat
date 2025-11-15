@@ -7,7 +7,18 @@ RUN apt-get update && apt-get install -y \
     libnss3 libxi6 libgbm1 libasound2 \
     libxrandr2 libxss1 libxtst6 \
     fonts-liberation xdg-utils \
+    git autoconf automake libtool pkg-config build-essential \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
+
+# Install libpostal (dependency for Python package postal)
+RUN git clone https://github.com/openvenues/libpostal \
+    && cd libpostal \
+    && ./bootstrap.sh \
+    && ./configure \
+    && make \
+    && make install \
+    && ldconfig
 
 # Set the working directory
 WORKDIR /app
