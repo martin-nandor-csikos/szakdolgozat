@@ -16,6 +16,7 @@ def get_mock_parse_all():
             found_emails={"email1@example.com": "https://example.com/page1"},
             found_names={},
             found_phone_numbers={},
+            found_addresses={},
         ),
         WebsiteInfo(
             found_urls={"https://example.com", "https://example.com/page1", "https://example.com/page2"},
@@ -25,6 +26,7 @@ def get_mock_parse_all():
             },
             found_names={},
             found_phone_numbers={},
+            found_addresses={},
         ),
     ]
 
@@ -42,6 +44,9 @@ def get_html_content_names():
 
 def get_html_content_phones():
     return HTML_CONTENT_PHONES
+
+def get_html_content_addresses():
+    return HTML_CONTENT_ADDRESSES
 
 HTML_CONTENT_BASIC = """
 <html>
@@ -109,6 +114,16 @@ HTML_CONTENT_PHONES = """
         <p>Hungarian national number: 06 30 111 2222</p>
         <p>UK international number: +44 20 1234 5678</p>
         <p>UK national number: 020 8366 1177</p>
+    </body>
+</html>
+"""
+
+HTML_CONTENT_ADDRESSES = """
+<html>
+    <body>
+        <p>123 Main St, Springfield, IL 62704</p>
+        <p>Some random text</p>
+        <p>6000 Kecskemét, Újfalu utca 31.</p>
     </body>
 </html>
 """

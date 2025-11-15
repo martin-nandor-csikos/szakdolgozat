@@ -5,7 +5,8 @@ import sys
 import os
 import unittest
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
+# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
+
 from website import (
     parse,
     parse_all,
@@ -14,8 +15,8 @@ from website import (
     get_emails,
     WebsiteInfo,
     get_phone_numbers,
+    get_addresses,
 )
-
 
 class WebsiteTest(unittest.TestCase):
     """Test class for the website module."""
@@ -24,7 +25,7 @@ class WebsiteTest(unittest.TestCase):
     def test_parse(self, mock_remote):
         mock_remote.return_value = get_mock_parse()
         website_url = "https://example.com"
-        info = WebsiteInfo(set(), {}, {}, {})
+        info = WebsiteInfo(set(), {}, {}, {}, {})
         result = parse(website_url, info)
 
         self.assertIsInstance(result, WebsiteInfo)
@@ -156,6 +157,24 @@ class WebsiteTest(unittest.TestCase):
         with self.assertRaises(TypeError):
             get_phone_numbers("https://example.com", content, "not_a_dict")
 
+    def test_get_addresses(self):
+        html_content = get_html_content_addresses()
+        found_addresses_empty = {}
+        content = BeautifulSoup(html_content, "html.parser")
+
+        result = get_addresses("https://example.com", content, found_addresses_empty)
+        self.assertIsInstance(result, dict)
+        found = any("123 main" in addr and "springfield" in addr for addr in result)
+        self.assertTrue(found)
+        found = any("újfalu utca" in addr and "kecskemét" in addr for addr in result)
+        self.assertTrue(found)
+
+        with self.assertRaises(ValueError):
+            get_addresses("Invalid URL", content, found_addresses_empty)
+        with self.assertRaises(TypeError):
+            get_addresses("https://example.com", "not_bs4", found_addresses_empty)
+        with self.assertRaises(TypeError):
+            get_addresses("https://example.com", content, "not_a_dict")
 
 if __name__ == "__main__":
     unittest.main()
