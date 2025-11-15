@@ -1,5 +1,4 @@
 from bs4 import BeautifulSoup
-from concurrent.futures import Future, ProcessPoolExecutor
 from collections import deque
 from rich.console import Console
 from selenium import webdriver
@@ -29,28 +28,7 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
         raise TypeError(f"Invalid info type. Expected type: WebsiteInfo, actual type: {type(info)}")
 
     content: BeautifulSoup = _get_website_content(website_url)
-
-    # Parse the content for information with multiprocessing
-    with ProcessPoolExecutor() as executor:
-        links: Future[set[str]] = executor.submit(
-            get_sublinks, website_url, content, info.found_urls
-        )
-        emails: Future[dict[str, str]] = executor.submit(
-            get_emails, website_url, content, info.found_emails
-        )
-        names: Future[dict[str, str]] = executor.submit(
-            get_names, website_url, content, info.found_names
-        )
-        phone_numbers: Future[dict[str, str]] = executor.submit(
-            get_phone_numbers, website_url, content, info.found_phone_numbers
-        )
-
-        found_links: set[str] = links.result()
-        found_emails: dict[str, str] = emails.result()
-        found_names: dict[str, str] = names.result()
-        found_phone_numbers: dict[str, str] = phone_numbers.result()
-
-    return WebsiteInfo(found_links, found_emails, found_names, found_phone_numbers)
+    return get_data_from_content(info, website_url, content)
 
 def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
     """Parse for links in the given website, then recursively parse the found links for information.
@@ -71,11 +49,11 @@ def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
 
     visited_urls: set = set()
     url_queue: deque[str] = deque([website_url])
-    info: WebsiteInfo = WebsiteInfo(set(), dict(), dict(), dict())
+    info: WebsiteInfo = WebsiteInfo(set(), dict(), dict(), dict(), dict())
     websites_parsed: int = 0
 
     # If sublinks to visit 0, only visit the main page
-    # If it's more than 0, visit the main page + the given number of sublinks
+    # If it's 1 or more, visit the main page + the given number of sublinks
     if sublinks_to_visit == 0:
         max_visits = 1
     else:
@@ -87,8 +65,8 @@ def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
         if url in visited_urls:
             continue
 
-        with console.status(f"Parsing [link={url}]{url}[/link]", spinner="dots"):
-            info = parse(url, info)
+        console.log(f"Parsing [link={url}]{url}[/link]")
+        info = parse(url, info)
         console.log(f"[green]Parsing completed[/green]")
         visited_urls.add(url)
         websites_parsed += 1
@@ -97,7 +75,6 @@ def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
         for found_url in info.found_urls:
             if found_url not in visited_urls and found_url not in url_queue:
                 url_queue.append(found_url)
-
 
     if websites_parsed < sublinks_to_visit:
         console.log(f"[yellow]Only {websites_parsed} subpages could be parsed.[/yellow]")
