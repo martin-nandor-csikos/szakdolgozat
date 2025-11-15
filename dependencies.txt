@@ -6,3 +6,4 @@ spacy
 huspacy
 phonenumbers
 validators
+postal
