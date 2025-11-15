@@ -6,6 +6,7 @@ from .website import (
     get_emails,
     get_names,
     get_phone_numbers,
+    get_addresses,
 )
 
 from .data_extractors import (
@@ -13,4 +14,5 @@ from .data_extractors import (
     get_emails,
     get_names,
     get_phone_numbers,
+    get_addresses,
 )

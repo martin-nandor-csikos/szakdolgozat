@@ -8,6 +8,8 @@ class WebsiteInfo:
         found_urls (set[str]): A set of all the URLs found during the parsing process
         found_emails (dict[str, str]): A dictionary of all the emails found in the HTML content. Key: email, Value: Website URL
         found_names (dict[str, str]): A dictionary of all the names found in the HTML content. Key: name, Value: Website URL
+        found_phone_numbers (dict[str, str]): A dictionary of all the phone numbers found in the HTML content. Key: name, Value: Website URL
+        found_addresses (dict[str, str]): A dictionary of all the addresses found in the HTML content. Key: name, Value: Website URL
 
     Methods:
         to_dict(): A method that converts the WebsiteInfo object into a dictionary for JSON serialization
@@ -17,6 +19,7 @@ class WebsiteInfo:
     found_emails: dict[str, str]
     found_names: dict[str, str]
     found_phone_numbers: dict[str, str]
+    found_addresses: dict[str, str]
 
     def to_dict(self) -> dict:
         """Convert the WebsiteInfo object into a dictionary for JSON serialization."""
@@ -25,4 +28,5 @@ class WebsiteInfo:
             "found_emails": self.found_emails,
             "found_names": self.found_names,
             "found_phone_numbers": self.found_phone_numbers,
+            "found_addresses": self.found_addresses,
         }
