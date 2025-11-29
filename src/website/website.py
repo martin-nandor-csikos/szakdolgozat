@@ -5,12 +5,16 @@ from selenium import webdriver
 from website import constants as Constants
 from .models import WebsiteInfo
 from .data_extractors import *
+import random
 import spacy
+import time
+import threading
 import validators
 
 console = Console(log_path=False)
 HU_MODEL = spacy.load(Constants.SPACY_MODEL_HU)
 EN_MODEL = spacy.load(Constants.SPACY_MODEL_EN)
+parsing_finished = threading.Event()
 
 def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
     """Parse the given website for information.
@@ -26,6 +30,10 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
         raise ValueError(f"Invalid URL: {website_url}")
     if not isinstance(info, WebsiteInfo):
         raise TypeError(f"Invalid info type. Expected type: WebsiteInfo, actual type: {type(info)}")
+
+    # Starting heartbeat thread
+    heartbeat_thread = threading.Thread(target=_print_heartbeat_message, daemon=True)
+    heartbeat_thread.start()
 
     content: BeautifulSoup = _get_website_content(website_url)
     return get_data_from_content(info, website_url, content)
@@ -78,6 +86,14 @@ def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
 
     if websites_parsed < sublinks_to_visit:
         console.log(f"[yellow]Only {websites_parsed} subpages could be parsed.[/yellow]")
+    
+    if not info.has_data():
+        console.log("[red]No data found during the parsing process :([/red]")
+
+    # Set parsing finished event to stop heartbeat thread
+    global parsing_finished
+    parsing_finished.set()
+
     return info
 
 def _get_website_content(url: str) -> BeautifulSoup:
@@ -102,3 +118,16 @@ def _get_website_content(url: str) -> BeautifulSoup:
     driver.quit()
 
     return content
+
+def _print_heartbeat_message(interval = 20):
+    """Print random heartbeat messages at regular intervals to indicate that parsing is still ongoing.
+    
+    Arguments:
+        interval (int): The interval in seconds between heartbeat messages
+    """
+    # Run until stop event is set
+    while not parsing_finished.is_set():
+        time.sleep(interval)
+        if parsing_finished.is_set():
+            break
+        console.print(random.choice(Constants.HEARTBEAT_MESSAGES))

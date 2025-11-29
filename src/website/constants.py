@@ -51,3 +51,15 @@ HTML_TEXT_TAGS: set[str] = {
     "summary",
 }
 PHONE_NUMBER_UNKNOWN_REGION = "ZZ"
+HEARTBEAT_MESSAGES = [
+    "Finding the best results for you...",
+    "Sit tight and grab a cup of coffee...",
+    "Operation in progress...",
+    "Analyzing data...",
+    "Don't worry, the program didn't freeze...yet...",
+    "Loading... (insert elevator music here)",
+    "Still parsing the website 4 real no cap",
+    "Did you know? The password for the first computer was 'password'.",
+    "Interesting fact: CAPTCHA stands for 'Completely Automated Public Turing test to tell Computers and Humans Apart'.",
+    "Some interesting trivia: The first domain name ever registered was symbolics.com in 1985.",
+]
