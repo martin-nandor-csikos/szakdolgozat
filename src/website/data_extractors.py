@@ -76,7 +76,7 @@ def get_sublinks(
 
     new_urls: set[str] = previous_urls
     hostname: str | None = urlparse.urlparse(website_url).hostname
-    website_url_stripped: str = website_url.rstrip(Constants.SPACE + Constants.SLASH)
+    website_url_stripped: str = _get_stripped_link(website_url)
 
     # Loop through all the 'a' tags in the content and extract the links
     for link_tag in content.find_all(Constants.HTML_LINK_TAG):
@@ -86,7 +86,7 @@ def get_sublinks(
             continue
 
         href: str = str(link_tag.attrs[Constants.HTML_HREF])
-        href_stripped: str = href.rstrip(Constants.SPACE + Constants.SLASH)
+        href_stripped: str = _get_stripped_link(href)
         # Extract link that starts with a slash, like "/about"
         # File links are skipped
         if href.startswith(Constants.SLASH) and not _is_file_url(href):
@@ -134,17 +134,26 @@ def get_emails(
         raise TypeError(f"Invalid previous_emails type. Expected type: dict, actual type: {type(previous_emails)}")
 
     new_emails: dict[str, str] = previous_emails
-    html_content: str = content.decode()
-    emails: list[str] = re.findall(Constants.EMAIL_REGEX, html_content)
+    text_tags: ResultSet[Tag] = content.find_all(Constants.HTML_TEXT_TAGS)
 
-    for email in emails:
-        if email not in new_emails.keys():
-            new_emails[email] = website_url.rstrip(
-                Constants.SPACE + Constants.SLASH
-            )
-            console.log(
-                f"[yellow]FOUND EMAIL[/]: [cyan]{email}[/] on [link={website_url}]{website_url}[/link]"
-            )
+    for tag in text_tags:
+        if not isinstance(tag, Tag):
+            raise TypeError(f"Invalid tag type. Expected type: Tag, actual type: {type(tag)}")
+
+        tag_text: str = tag.text.strip()
+        if not tag_text:
+            continue
+
+        emails: list[str] = re.findall(Constants.EMAIL_REGEX, tag_text)
+
+        for email in emails:
+            if email not in new_emails.keys():
+                new_emails[email] = website_url.rstrip(
+                    Constants.SPACE + Constants.SLASH
+                )
+                console.log(
+                    f"[yellow]FOUND EMAIL[/]: [cyan]{email}[/] on [link={website_url}]{website_url}[/link]"
+                )
 
     return new_emails
 
@@ -169,7 +178,7 @@ def get_names(
         raise TypeError(f"Invalid previous_names type. Expected type: dict, actual type: {type(previous_names)}")
 
     new_names: dict[str, str] = previous_names
-    top_level_domain: str = urlparse.urlparse(website_url).netloc.split(".")[-1]
+    top_level_domain: str = _get_tld(website_url)
     nlp: Language = _get_spacy_model(top_level_domain)
     name_regex: re.Pattern[str] = re.compile(Constants.NAME_REGEX)
     text_tags: ResultSet[Tag] = content.find_all(Constants.HTML_TEXT_TAGS)
@@ -241,7 +250,7 @@ def get_phone_numbers(
     else:
         phone_number_region: str = Constants.PHONE_NUMBER_UNKNOWN_REGION
 
-    website_url_stripped: str = website_url.rstrip(Constants.SPACE + Constants.SLASH)
+    website_url_stripped: str = _get_stripped_link(website_url)
 
     # Iterate through the phone number matches
     for phone_number_match in phonenumbers.PhoneNumberMatcher(
@@ -294,18 +303,27 @@ def get_addresses(
         if not tag_text:
             continue
 
-        parsed_address = parse_address(tag_text, _get_tld(website_url))
+        parsed_address = parse_address(tag_text)
 
-        # 3 is an arbitrary threshold to filter out non-addresses
+        # Min and Max are an arbitrary threshold to filter out non-addresses
         min_component_count = 3
-        if len(parsed_address) > min_component_count:
+        max_component_count = 10
+        not_an_address = False
+        component_index = 0
+        for component in parsed_address[component_index]:
+            # Check if the component has more than 5 words to eliminate a large number of false positives
+            component_word_count = len(component.split(Constants.SPACE))
+            min_component_word_count = 4
+            if component_word_count > min_component_word_count:
+                not_an_address = True
+                break
+
+        if len(parsed_address) > min_component_count and len(parsed_address) < max_component_count and not not_an_address:
             # Reconstruct the address from the parsed components
             full_address = " ".join(component for component, label in parsed_address)
 
             if full_address not in new_addresses.keys():
-                new_addresses[full_address] = website_url.rstrip(
-                    Constants.SPACE + Constants.SLASH
-                )
+                new_addresses[full_address] = _get_stripped_link(website_url)
                 console.log(
                     f"[yellow]FOUND ADDRESS[/]: [cyan]{full_address}[/] on [link={website_url}]{website_url}[/link]"
                 )
@@ -380,3 +398,13 @@ def _get_tld(website_url: str) -> str:
         raise ValueError(f"Invalid URL: {website_url}")
     
     return urlparse.urlparse(website_url).netloc.split(".")[-1]
+
+def _get_stripped_link(link: str) -> str:
+    """Get the stripped version of the given link.
+
+    Arguments:
+        link (str): A link to a website
+    Returns:
+        str: Stripped version of the link
+    """    
+    return link.rstrip(Constants.SPACE + Constants.SLASH)
