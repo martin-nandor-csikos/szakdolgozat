@@ -15,13 +15,16 @@ def export_data(info: WebsiteInfo):
     Arguments:
         info (WebsiteInfo): The information found during the parsing process
     """
+    if not isinstance(info, WebsiteInfo):
+        raise TypeError(f"Invalid info type. Expected type: WebsiteInfo, actual type: {type(info)}")
+    
     # Only export if data has been found during parsing
     # Links don't count as data
     if info.has_data():
         is_start_export = _get_export_confirmation()
         if is_start_export == True:
             file_path = _get_export_path()
-            file_name = _get_file_name()
+            file_name = _get_file_name(file_path)
             _export_to_csv(info, file_path, file_name)
 
 def _get_export_confirmation() -> bool:
@@ -30,14 +33,14 @@ def _get_export_confirmation() -> bool:
      Returns:
         bool: True if user wants to export, False otherwise
     """
+    console.print(Constants.GET_EXPORT_CONFIRM_MSG, end="")
     while True:
-        console.print(Constants.GET_EXPORT_CONFIRM_MSG, end="")
         export_choice = input().strip().lower()
 
         if export_choice in [ExportChoice.EXPORT.value, ExportChoice.NO_EXPORT.value]:
             break
         else:
-            console.print("[red]Invalid input. Please enter 'y' for yes or 'n' for no.[/red]")
+            console.print("[red]Invalid input. Please enter 'y' for yes or 'n' for no: [/red]")
 
     if export_choice == ExportChoice.NO_EXPORT.value:
         return False
@@ -49,36 +52,69 @@ def _get_export_path() -> str:
      Returns:
         str: The file path to export the CSV file to
     """
+    console.print(Constants.GET_EXPORT_PATH_MSG, end="")
     while True:
-        console.print(Constants.GET_EXPORT_PATH_MSG, end="")
-        export_path = input().strip().lower()
+        export_path = input().strip()
+        error_occured = False
 
-        if isinstance(export_path, str) and os.path.exists(export_path):
+        if not isinstance(export_path, str):
+            console.print("[red]Invalid type for path. Please enter a valid path: [/red]")
+            error_occured = True
+
+        if not os.path.exists(export_path):
+            console.print("[red]Path not found. Please enter an existing path: [/red]")
+            error_occured = True
+
+        if not error_occured:
             break
-        else:
-            console.print("[red]Invalid path. Please enter a valid path.[/red]")
     
     return export_path
 
-def _get_file_name() -> str:
+def _get_file_name(path: str) -> str:
     """Get the file name from the user for the exported CSV file.
     
      Returns:
         str: The file name for the exported CSV file
     """
+    if not isinstance(path, str):
+        raise TypeError(f"Invalid file_path type. Expected type: str, actual type: {type(path)}")
+
+    console.print(Constants.GET_FILE_NAME_MSG, end="")
     while True:
-        console.print(Constants.GET_FILE_NAME_MSG, end="") 
-        file_name = input().strip().lower()
+        file_name = input().strip()
+        error_occured = False
 
-        if isinstance(file_name, str):
+        if file_name == "":
+            console.print("[red]Empty file name. Please enter a valid name: [/red]")
+            error_occured = True
+
+        if not isinstance(file_name, str):
+            console.print("[red]Invalid type for name. Please enter a valid name: [/red]")
+            error_occured = True
+
+        max_file_name_length = 50
+        if len(file_name) > max_file_name_length:
+            console.print("[red]File name is too long. Please enter a shorter name: [/red]")
+            error_occured = True
+
+        full_path = os.path.join(path, f"{file_name}.csv")
+        if os.path.exists(full_path):
+            console.print("[red]A file with this name already exists in the provided path. " \
+            "Please enter a different name: [/red]")
+            error_occured = True
+
+        if " " in file_name:
+            console.print("[red]Invalid name, name contains spaces. Please enter a valid name: [/red]")
+            error_occured = True
+
+        if not error_occured:
             break
-        else:
-            console.print("[red]Invalid type for name. Please enter a valid name.[/red]")
     
-    # Removing the extension from the file name and storing only the name
-    name_without_extension = os.path.splitext(file_name)[0]
+    # Removing the csv extension from the file name if it has one
+    if file_name.endswith(".csv"):
+        file_name = os.path.splitext(file_name)[0]
 
-    return name_without_extension
+    return file_name
 
 def _export_to_csv(info: WebsiteInfo, file_path: str, file_name: str):
     """Export the website information to a CSV file.
@@ -88,10 +124,18 @@ def _export_to_csv(info: WebsiteInfo, file_path: str, file_name: str):
         file_path (str): The file path to export the CSV file to
         file_name (str): The name of the CSV file
     """
+    if not isinstance(info, WebsiteInfo):
+        raise TypeError(f"Invalid info type. Expected type: WebsiteInfo, actual type: {type(info)}")
+    if not isinstance(file_path, str):
+        raise TypeError(f"Invalid file_path type. Expected type: str, actual type: {type(file_path)}")
+    if not isinstance(file_name, str):
+        raise TypeError(f"Invalid file_name type. Expected type: str, actual type: {type(file_name)}")
+    
     if info.has_data():
         data_columns = _get_data_columns(info)
+        full_path = os.path.join(file_path, f"{file_name}.csv")
+        csv_file = None
         try:
-            full_path = os.path.join(file_path, f"{file_name}.csv")
             with open(full_path, mode='w', newline='', encoding='utf-8') as csv_file:
                 columns = data_columns.keys()
                 writer = csv.DictWriter(csv_file, fieldnames=columns)
@@ -102,11 +146,17 @@ def _export_to_csv(info: WebsiteInfo, file_path: str, file_name: str):
                     row = dict(zip(columns, row_values))
                     writer.writerow(row)
 
-                csv_file.close()
-
             console.print(f"[green]Export completed successfully to {file_path}/{file_name}.csv[/green]")
         except Exception as e:
             console.print(f"[red]Failed to export data to CSV: {e}[/red]")
+            if csv_file is not None and os.path.exists(full_path):
+                try:
+                    os.remove(full_path)
+                except Exception as delete_error:
+                    console.print(f"[red]Failed to delete incomplete CSV file: {delete_error}[/red]")
+        finally:
+            if csv_file is not None and os.path.exists(full_path):
+                csv_file.close()
 
 def _get_data_columns(info: WebsiteInfo) -> dict[str, list[str]]:
     """Get the data columns from the WebsiteInfo object for CSV export.

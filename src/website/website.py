@@ -125,6 +125,9 @@ def _print_heartbeat_message(interval = 20):
     Arguments:
         interval (int): The interval in seconds between heartbeat messages
     """
+    if not isinstance(interval, int):
+        raise TypeError(f"Invalid interval type. Expected type: int, actual type: {type(interval)}")
+    
     # Run until stop event is set
     while not parsing_finished.is_set():
         time.sleep(interval)
