@@ -1,11 +1,7 @@
 from bs4 import BeautifulSoup
 from .mock_data import *
-from unittest.mock import MagicMock, patch
-import sys
-import os
+from unittest.mock import patch
 import unittest
-
-# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 from website import (
     parse,
@@ -37,8 +33,9 @@ class WebsiteTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse("Invalid URL", info)
 
+    @patch("builtins.input", return_value="n")
     @patch("website.website.parse")
-    def test_parse_all(self, mock_parse):
+    def test_parse_all(self, mock_parse, mock_input):
         mock_parse.side_effect = get_mock_parse_all()
 
         result = parse_all("https://example.com", 1)
