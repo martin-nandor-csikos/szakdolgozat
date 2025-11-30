@@ -36,19 +36,6 @@ def get_mock_website_info_with_names_only() -> WebsiteInfo:
         found_addresses={},
     )
 
-def get_mock_website_info_with_emails_only() -> WebsiteInfo:
-    """Return a WebsiteInfo object with only emails."""
-    return WebsiteInfo(
-        found_urls={"https://example.com"},
-        found_emails={
-            "john@example.com": "https://example.com",
-            "jane@example.com": "https://example.com",
-        },
-        found_names={},
-        found_phone_numbers={},
-        found_addresses={},
-    )
-
 def get_mock_website_info_empty() -> WebsiteInfo:
     """Return an empty WebsiteInfo object."""
     return WebsiteInfo(
