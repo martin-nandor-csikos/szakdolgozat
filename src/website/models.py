@@ -38,9 +38,9 @@ class WebsiteInfo:
         Returns:
             bool: True if any data has been found, False otherwise
         """
-        return bool(
-            self.found_names
-            or self.found_emails
-            or self.found_phone_numbers
-            or self.found_addresses
-        )
+        return any([
+            self.found_addresses,
+            self.found_emails,
+            self.found_names,
+            self.found_phone_numbers,
+        ])
