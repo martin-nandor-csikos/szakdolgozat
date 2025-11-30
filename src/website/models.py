@@ -22,11 +22,25 @@ class WebsiteInfo:
     found_addresses: dict[str, str]
 
     def to_dict(self) -> dict:
-        """Convert the WebsiteInfo object into a dictionary for JSON serialization."""
+        """Convert the WebsiteInfo object into a dictionary for JSON serialization.
+        """
         return {
-            "found_urls": list(self.found_urls),
             "found_emails": self.found_emails,
             "found_names": self.found_names,
             "found_phone_numbers": self.found_phone_numbers,
             "found_addresses": self.found_addresses,
         }
+
+    def has_data(self) -> bool:
+        """Check if any data has been found during the parsing process.
+        Only check for emails, names, phone numbers, and addresses.
+
+        Returns:
+            bool: True if any data has been found, False otherwise
+        """
+        return any([
+            self.found_addresses,
+            self.found_emails,
+            self.found_names,
+            self.found_phone_numbers,
+        ])
