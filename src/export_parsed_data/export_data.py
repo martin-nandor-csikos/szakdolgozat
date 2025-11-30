@@ -15,11 +15,14 @@ def export_data(info: WebsiteInfo):
     Arguments:
         info (WebsiteInfo): The information found during the parsing process
     """
-    is_start_export = _get_export_confirmation()
-    if is_start_export == True:
-        file_path = _get_export_path()
-        file_name = _get_file_name()
-        _export_to_csv(info, file_path, file_name)
+    # Only export if data has been found during parsing
+    # Links don't count as data
+    if info.has_data():
+        is_start_export = _get_export_confirmation()
+        if is_start_export == True:
+            file_path = _get_export_path()
+            file_name = _get_file_name()
+            _export_to_csv(info, file_path, file_name)
 
 def _get_export_confirmation() -> bool:
     """Ask the user for confirmation to export data to CSV.
@@ -85,24 +88,25 @@ def _export_to_csv(info: WebsiteInfo, file_path: str, file_name: str):
         file_path (str): The file path to export the CSV file to
         file_name (str): The name of the CSV file
     """
+    if info.has_data():
+        data_columns = _get_data_columns(info)
+        try:
+            full_path = os.path.join(file_path, f"{file_name}.csv")
+            with open(full_path, mode='w', newline='', encoding='utf-8') as csv_file:
+                columns = data_columns.keys()
+                writer = csv.DictWriter(csv_file, fieldnames=columns)
+                writer.writeheader()
 
-    data_columns = _get_data_columns(info)
-    try:
-        full_path = os.path.join(file_path, f"{file_name}.csv")
-        with open(full_path, mode='w', newline='', encoding='utf-8') as csv_file:
-            columns = data_columns.keys()
-            writer = csv.DictWriter(csv_file, fieldnames=columns)
-            writer.writeheader()
+                # Unpack data column values to separate arguments for zip_longest
+                for row_values in zip_longest(*data_columns.values(), fillvalue=""):
+                    row = dict(zip(columns, row_values))
+                    writer.writerow(row)
 
-            for row_values in zip_longest(*data_columns.values(), fillvalue=""):
-                row = dict(zip(columns, row_values))
-                writer.writerow(row)
+                csv_file.close()
 
-            csv_file.close()
-
-        console.print(f"[green]Export completed successfully to {file_path}/{file_name}.csv[/green]")
-    except Exception as e:
-        console.print(f"[red]Failed to export data to CSV: {e}[/red]")
+            console.print(f"[green]Export completed successfully to {file_path}/{file_name}.csv[/green]")
+        except Exception as e:
+            console.print(f"[red]Failed to export data to CSV: {e}[/red]")
 
 def _get_data_columns(info: WebsiteInfo) -> dict[str, list[str]]:
     """Get the data columns from the WebsiteInfo object for CSV export.

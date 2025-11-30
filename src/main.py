@@ -15,10 +15,7 @@ def main() -> None:
     # )
     # print(website_info_json)
 
-    # Only export if data has been found during parsing
-    # Links don't count as data
-    if website_info.has_data():
-        export_data(website_info)
+    export_data(website_info)
 
 def _get_args() -> tuple[str, int]:
     """Get the input arguments from the user. The program requires an URL
