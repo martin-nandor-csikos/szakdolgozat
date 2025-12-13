@@ -43,7 +43,7 @@ def get_data_from_content(
             get_phone_numbers, website_url, content, info.found_phone_numbers
         )
         addresses: Future[dict[str, str]] = executor.submit(
-            get_addresses, website_url, content, info.found_phone_numbers
+            get_addresses, website_url, content, info.found_addresses
         )
 
         found_links: set[str] = links.result()
