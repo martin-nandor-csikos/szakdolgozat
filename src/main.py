@@ -7,7 +7,11 @@ import validators
 def main() -> None:
     """Main function of the program where the individual methods are called.
     """
-    args = _get_args()
+    try:
+        args = _get_args()
+    except ValueError as e:
+        print(f"Invalid argument: {e}")
+        return
 
     # Parse the given website
     website_info: WebsiteInfo = parse_all(args.link, args.sublinks)
@@ -63,7 +67,7 @@ def _get_args() -> argparse.Namespace:
     args = parser.parse_args()
     
     if not validators.url(args.link):
-        raise ValueError(f"Invalid URL: {args.link}. Example of a valid URL: https://www.company.com")
+        raise ValueError(f"URL '{args.link}' is invalid. Example of a valid URL: 'https://www.company.com/subpage'")
     if args.sublinks < 0:
         raise ValueError("The maximum number of subpages to visit must be at least 0 or more")
     return args
