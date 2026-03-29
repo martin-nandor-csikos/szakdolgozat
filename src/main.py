@@ -1,48 +1,72 @@
 from export_parsed_data import export_data
+# from linkedin_links import get_links
 from website import WebsiteInfo, parse_all
-import json
-import sys
+import argparse
 import validators
 
 def main() -> None:
     """Main function of the program where the individual methods are called.
     """
-    url, sublinks_to_visit = _get_args()
-    website_info: WebsiteInfo = parse_all(url, sublinks_to_visit)
+    args = _get_args()
 
-    # website_info_json: str = json.dumps(
-    #     website_info.to_dict(), indent=4, ensure_ascii=False
-    # )
-    # print(website_info_json)
+    # Parse the given website
+    website_info: WebsiteInfo = parse_all(args.link, args.sublinks)
 
-    export_data(website_info)
+    # Find LinkedIn links for the found names
+    if len(website_info.found_names) != 0:
+        names_list = list(website_info.found_names.keys())
+        # print(get_links(names_list, args.company))
 
-def _get_args() -> tuple[str, int]:
-    """Get the input arguments from the user. The program requires an URL
-    and an optional integer for the maximum number of sublinks to visit.
+    # Export the parsed data to a CSV file
+    if website_info.has_data():
+        export_data(website_info)
+
+def _get_args() -> argparse.Namespace:
+    """Get the input arguments from the user using argparse.
+    
+    Required arguments:
+        --link: The website URL to parse
+    
+    Optional arguments:
+        --company: Company name for LinkedIn search
+        --sublinks: Maximum number of subpages to visit (default: 0)
 
     Returns:
-        tuple[str, int]: The website URL and the maximum number of sublinks to visit
+        argparse.Namespace: The parsed arguments
     """
-    url_arg_index = 1
-    sublinks_to_visit_arg_index = 2
-    required_arg_count = 2
-    max_arg_count = 3
+    parser = argparse.ArgumentParser(
+        description="Parse a website for employee information and find their LinkedIn profiles based on the provided company name. " \
+        "The program will parse for names, phone numbers, emails and addresses. " \
+        "If names were found, the app will search for their LinkedIn profiles. "
+    )
+    parser.add_argument(
+        '-c', '--company',
+        required=True,
+        type=str,
+        default=None,
+        help="Company name for LinkedIn search (required)"
+    )
+    parser.add_argument(
+        '-l', '--link',
+        required=True,
+        type=str,
+        help="Website URL to parse (required)"
+    )
+    parser.add_argument(
+        '-s', '--sublinks',
+        required=False,
+        type=int,
+        default=0,
+        help="Maximum number of subpages to visit (default: 0, only the given URL will be parsed)"
+    )
 
-    if len(sys.argv) < required_arg_count or len(sys.argv) > max_arg_count:
-        raise ValueError("Wrong number of parameters. Usage: python main.py <website's URL to parse> <maximum number of subpages to visit (optional)>")
-    if not validators.url(sys.argv[url_arg_index]):
-        raise ValueError(f"Invalid URL: {sys.argv[url_arg_index]}. Example of a valid URL: https://www.example.com")
-    if len(sys.argv) == max_arg_count:
-        if not isinstance(int(sys.argv[sublinks_to_visit_arg_index]), int):
-            raise TypeError("Invalid sublinks_to_visit type. Must be an integer")
-        if int(sys.argv[sublinks_to_visit_arg_index]) < 1:
-            raise ValueError("The maximum number of subpages to visit must be at least 1 or more")
+    args = parser.parse_args()
     
-    # If sublinks to visit argument was not provided, default to 0
-    if (len(sys.argv) == max_arg_count):
-        return sys.argv[url_arg_index], int(sys.argv[sublinks_to_visit_arg_index])
-    return sys.argv[url_arg_index], 0
+    if not validators.url(args.link):
+        raise ValueError(f"Invalid URL: {args.link}. Example of a valid URL: https://www.company.com")
+    if args.sublinks < 0:
+        raise ValueError("The maximum number of subpages to visit must be at least 0 or more")
+    return args
 
 if __name__ == "__main__":
     main()

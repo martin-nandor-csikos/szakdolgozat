@@ -305,6 +305,10 @@ def get_addresses(
 
         parsed_address = parse_address(tag_text)
 
+        # Skip empty results
+        if not parsed_address:
+            continue
+
         # Min and Max are an arbitrary threshold to filter out non-addresses
         min_component_count = 3
         max_component_count = 10
