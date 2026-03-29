@@ -1,10 +1,9 @@
-import os
-import unittest
-import tempfile
 import csv
-from unittest.mock import patch
+import os
+import sys
+import tempfile
+import unittest
 from datetime import datetime
-
 from export_parsed_data import export_data
 from export_parsed_data.export_data import _get_export_confirmation, _get_export_path, _get_file_name, _export_to_csv
 from .mock_data import (
@@ -13,6 +12,9 @@ from .mock_data import (
     get_mock_website_info_empty,
     get_mock_website_info_with_multiple_data_types,
 )
+from unittest.mock import patch
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 class ExportDataTest(unittest.TestCase):
     """Test class for the export_parsed_data module."""
