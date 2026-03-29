@@ -47,28 +47,23 @@ def _get_export_confirmation() -> bool:
     return True
 
 def _get_export_path() -> str:
-    """Get the file path from the user to export the CSV file.
+    """Get the results folder path for exporting CSV files.
+    Creates the results folder if it doesn't exist.
     
      Returns:
-        str: The file path to export the CSV file to
+        str: The path to the results folder
     """
-    console.print(Constants.GET_EXPORT_PATH_MSG, end="")
-    while True:
-        export_path = input().strip()
-        error_occured = False
-
-        if not isinstance(export_path, str):
-            console.print("[red]Invalid type for path. Please enter a valid path: [/red]")
-            error_occured = True
-
-        if not os.path.exists(export_path):
-            console.print("[red]Path not found. Please enter an existing path: [/red]")
-            error_occured = True
-
-        if not error_occured:
-            break
+    root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+    results_folder = os.path.join(root_path, "results")
+        
+    if not os.path.exists(results_folder):
+        try:
+            os.makedirs(results_folder)
+        except Exception as e:
+            console.print(f"[red]Failed to create results folder: {e}[/red]")
+            raise
     
-    return export_path
+    return results_folder
 
 def _get_file_name(path: str) -> str:
     """Get the file name from the user for the exported CSV file.

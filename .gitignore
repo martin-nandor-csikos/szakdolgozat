@@ -3,3 +3,4 @@
 /.venv
 .env
 **/csv_export_files/
+**/results/
