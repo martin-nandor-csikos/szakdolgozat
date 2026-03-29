@@ -1,8 +1,9 @@
+import os
+import sys
+import unittest
 from bs4 import BeautifulSoup
 from .mock_data import *
 from unittest.mock import patch
-import unittest
-
 from website import (
     parse,
     parse_all,
@@ -13,6 +14,8 @@ from website import (
     get_phone_numbers,
     get_addresses,
 )
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 class WebsiteTest(unittest.TestCase):
     """Test class for the website module."""
