@@ -138,7 +138,7 @@ def _export_to_csv(info: WebsiteInfo, file_path: str, file_name: str):
         try:
             with open(full_path, mode='w', newline='', encoding='utf-8') as csv_file:
                 columns = data_columns.keys()
-                writer = csv.DictWriter(csv_file, fieldnames=columns)
+                writer = csv.DictWriter(csv_file, fieldnames=columns, delimiter=';', quoting=csv.QUOTE_NONNUMERIC)
                 writer.writeheader()
 
                 # Unpack data column values to separate arguments for zip_longest

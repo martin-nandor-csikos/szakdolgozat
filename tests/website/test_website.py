@@ -2,8 +2,8 @@ import os
 import sys
 import unittest
 from bs4 import BeautifulSoup
-from .mock_data import *
 from unittest.mock import patch
+from .mock_data import *
 from website import (
     parse,
     parse_all,
