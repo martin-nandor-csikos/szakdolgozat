@@ -304,33 +304,25 @@ def get_addresses(
             continue
 
         parsed_address = parse_address(tag_text)
-
         # Skip empty results
         if not parsed_address:
             continue
 
-        # Min and Max are an arbitrary threshold to filter out non-addresses
-        min_component_count = 3
-        max_component_count = 10
-        not_an_address = False
-        component_index = 0
-        for component in parsed_address[component_index]:
-            # Check if the component has more than 5 words to eliminate a large number of false positives
-            component_word_count = len(component.split(Constants.SPACE))
-            min_component_word_count = 4
-            if component_word_count > min_component_word_count:
-                not_an_address = True
-                break
+        parsed_dict = dict(parsed_address)
+        # Check for essential components to avoid false positives
+        if 'city' in parsed_dict.values() and 'road' in parsed_dict.values() and 'postcode' in parsed_dict.values():
+            # Min and Max are an arbitrary threshold to filter out non-addresses
+            min_component_count = 3
+            max_component_count = 10
+            if len(parsed_address) > min_component_count and len(parsed_address) < max_component_count:
+                # Reconstruct the address from the parsed components
+                full_address = " ".join(component for component, label in parsed_address)
 
-        if len(parsed_address) > min_component_count and len(parsed_address) < max_component_count and not not_an_address:
-            # Reconstruct the address from the parsed components
-            full_address = " ".join(component for component, label in parsed_address)
-
-            if full_address not in new_addresses.keys():
-                new_addresses[full_address] = _get_stripped_link(website_url)
-                console.log(
-                    f"[yellow]FOUND ADDRESS[/]: [cyan]{full_address}[/] on [link={website_url}]{website_url}[/link]"
-                )
+                if full_address not in new_addresses.keys():
+                    new_addresses[full_address] = _get_stripped_link(website_url)
+                    console.log(
+                        f"[yellow]FOUND ADDRESS[/]: [cyan]{full_address}[/] on [link={website_url}]{website_url}[/link]"
+                    )
 
     return new_addresses
 

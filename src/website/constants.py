@@ -32,7 +32,6 @@ HTML_TEXT_TAGS: set[str] = {
     "td",
     "th",
     "label",
-    "button",
     "strong",
     "em",
     "b",
@@ -46,7 +45,6 @@ HTML_TEXT_TAGS: set[str] = {
     "pre",
     "abbr",
     "q",
-    "time",
     "output",
     "summary",
 }
