@@ -19,9 +19,9 @@ class ExportDataTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Set up the csv_export_files directory if doesn't exist."""
-        cls.csv_export_dir = os.path.join(
-            os.path.dirname(__file__), "csv_export_files"
+        """Set up the results directory."""
+        cls.csv_export_dir = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "../../results")
         )
         os.makedirs(cls.csv_export_dir, exist_ok=True)
 
@@ -48,19 +48,25 @@ class ExportDataTest(unittest.TestCase):
         result = _get_export_confirmation()
         self.assertTrue(result)
 
-    @patch('builtins.input')
-    def test_get_export_path_valid(self, mock_input):
-        """Test getting export path with valid input."""
-        mock_input.return_value = self.csv_export_dir
+    def test_get_export_path(self):
+        """Test getting export path returns valid results folder path."""
         result = _get_export_path()
+        
+        # Should be a string path ending in results
+        self.assertIsInstance(result, str)
         self.assertEqual(result, self.csv_export_dir)
-
-    @patch('builtins.input', side_effect=['/invalid/path', tempfile.gettempdir()])
-    def test_get_export_path_invalid_then_valid(self, mock_input):
-        """Test getting export path with invalid path followed by valid path."""
-        result = _get_export_path()
-        # Should eventually return a valid path
+        
+        # Verify the results folder exists and is accessible
         self.assertTrue(os.path.exists(result))
+        self.assertTrue(os.path.isdir(result))
+
+    @patch('os.makedirs', side_effect=OSError("Permission denied"))
+    def test_get_export_path_creation_error(self, mock_makedirs):
+        """Test that _get_export_path raises exception when results folder creation fails."""
+        # Mock that the results folder doesn't exist so makedirs will be called
+        with patch('os.path.exists', return_value=False):
+            with self.assertRaises(OSError):
+                _get_export_path()
 
     def test_get_file_name_with_invalid_type_path(self):
         """Test get_file_name with invalid path type."""
