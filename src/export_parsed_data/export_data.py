@@ -25,7 +25,10 @@ def export_data(info: WebsiteInfo):
         if is_start_export == True:
             file_path = _get_export_path()
             file_name = _get_file_name(file_path)
-            _export_to_csv(info, file_path, file_name)
+            if file_name is not None:
+                _export_to_csv(info, file_path, file_name)
+            else:
+                console.print("[red]Export cancelled.[/red]")
 
 def _get_export_confirmation() -> bool:
     """Ask the user for confirmation to export data to CSV.
@@ -65,7 +68,7 @@ def _get_export_path() -> str:
     
     return results_folder
 
-def _get_file_name(path: str) -> str:
+def _get_file_name(path: str) -> str | None:
     """Get the file name from the user for the exported CSV file.
     
      Returns:
@@ -92,12 +95,6 @@ def _get_file_name(path: str) -> str:
             console.print("[red]File name is too long. Please enter a shorter name: [/red]")
             error_occured = True
 
-        full_path = os.path.join(path, f"{file_name}.csv")
-        if os.path.exists(full_path):
-            console.print("[red]A file with this name already exists in the provided path. " \
-            "Please enter a different name: [/red]")
-            error_occured = True
-
         if " " in file_name:
             console.print("[red]Invalid name, name contains spaces. Please enter a valid name: [/red]")
             error_occured = True
@@ -105,11 +102,40 @@ def _get_file_name(path: str) -> str:
         if not error_occured:
             break
     
+    full_path = os.path.join(path, f"{file_name}.csv")
+    if os.path.exists(full_path):
+        overwrite_choice = _ask_overwrite_existing_file(full_path, file_name)
+        if overwrite_choice == ExportChoice.NO_EXPORT:
+            return None
+
     # Removing the csv extension from the file name if it has one
     if file_name.endswith(".csv"):
         file_name = os.path.splitext(file_name)[0]
 
     return file_name
+
+def _ask_overwrite_existing_file(file_path: str, file_name: str) -> ExportChoice:
+    """Ask the user if they want to overwrite an existing file with the same name.
+    
+        Arguments:
+            file_path (str): The path to the existing file
+            file_name (str): The name of the existing file
+        Returns:
+            ExportChoice: The user's choice to overwrite the existing file or not
+    """
+    console.print("[red]A file with this name already exists in the provided path. " \
+    "This file will be overwritten. Do you want to continue? (y/n): [/red]")
+
+    while True:
+        overwrite_choice = input().strip().lower()
+        if overwrite_choice in [ExportChoice.EXPORT.value, ExportChoice.NO_EXPORT.value]:
+            break
+        else:
+            console.print("[red]Invalid input. Please enter 'y' for yes or 'n' for no: [/red]")
+
+    if overwrite_choice == ExportChoice.NO_EXPORT.value:
+        return ExportChoice.NO_EXPORT
+    return ExportChoice.EXPORT
 
 def _export_to_csv(info: WebsiteInfo, file_path: str, file_name: str):
     """Export the website information to a CSV file.

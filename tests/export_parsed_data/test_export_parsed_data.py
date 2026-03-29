@@ -5,7 +5,7 @@ import unittest
 from datetime import datetime
 from unittest.mock import patch
 from export_parsed_data import export_data
-from export_parsed_data.export_data import _get_export_confirmation, _get_export_path, _get_file_name, _export_to_csv
+from export_parsed_data.export_data import _get_export_confirmation, _get_export_path, _get_file_name, _export_to_csv, export_data
 from .mock_data import (
     get_mock_website_info_with_all_data,
     get_mock_website_info_with_names_only,
@@ -97,21 +97,29 @@ class ExportDataTest(unittest.TestCase):
         result = _get_file_name(self.csv_export_dir)
         self.assertEqual(result, 'valid_name')
 
-    def test_get_file_name_existing_file(self):
-        """Test getting file name when file already exists."""
+    def test_get_file_name_existing_file_overwrite_yes(self):
+        """Test getting file name when file already exists and user wants to overwrite."""
         # Create a test file
-        existing_file = os.path.join(self.csv_export_dir, "existing_file.csv")
+        existing_file = os.path.join(self.csv_export_dir, "test_existing_file.csv")
         with open(existing_file, 'w') as f:
             f.write("test")
         
-        try:
-            with patch('builtins.input', side_effect=['existing_file', 'new_file']):
-                result = _get_file_name(self.csv_export_dir)
-                self.assertEqual(result, 'new_file')
-        finally:
-            # Clean up
-            if os.path.exists(existing_file):
-                os.remove(existing_file)
+        # User inputs existing file name and says 'y' to overwrite
+        with patch('builtins.input', side_effect=['test_existing_file', 'y']):
+            result = _get_file_name(self.csv_export_dir)
+            self.assertEqual(result, 'test_existing_file')
+
+    def test_get_file_name_existing_file_overwrite_no(self):
+        """Test getting file name when file already exists and user says no to overwrite."""
+        # Create a test file
+        existing_file = os.path.join(self.csv_export_dir, "test_existing_file.csv")
+        with open(existing_file, 'w') as f:
+            f.write("test")
+        
+        # User inputs existing file name and says 'n' to overwrite
+        with patch('builtins.input', side_effect=['test_existing_file', 'n']):
+            result = _get_file_name(self.csv_export_dir)
+            self.assertIsNone(result)
 
     @patch('builtins.input', side_effect=['x' * 51, 'x' * 50])
     def test_get_file_name_too_long_then_valid(self, mock_input):
@@ -247,6 +255,32 @@ class ExportDataTest(unittest.TestCase):
         csv_path = os.path.join(self.csv_export_dir, f"{file_name}.csv")
         # File should be deleted if an exception occurred
         self.assertFalse(os.path.exists(csv_path))
+
+    @patch('export_parsed_data.export_data._get_export_confirmation', return_value=True)
+    @patch('export_parsed_data.export_data._get_export_path')
+    @patch('export_parsed_data.export_data._get_file_name', return_value=None)
+    def test_export_data_user_cancels_overwrite(self, mock_get_file_name, mock_get_export_path, mock_get_confirmation):
+        """Test that export_data doesn't export when user cancels due to overwrite prompt."""
+        mock_get_export_path.return_value = self.csv_export_dir
+        website_info = get_mock_website_info_with_all_data()
+        
+        with patch('export_parsed_data.export_data._export_to_csv') as mock_export_to_csv:
+            export_data(website_info)
+            # _export_to_csv should not be called if file_name is None
+            mock_export_to_csv.assert_not_called()
+    
+    @patch('export_parsed_data.export_data._get_export_confirmation', return_value=True)
+    @patch('export_parsed_data.export_data._get_export_path')
+    @patch('export_parsed_data.export_data._get_file_name', return_value='test_file')
+    def test_export_data_user_confirms_export(self, mock_get_file_name, mock_get_export_path, mock_get_confirmation):
+        """Test that export_data exports when user provides valid file name."""
+        mock_get_export_path.return_value = self.csv_export_dir
+        website_info = get_mock_website_info_with_all_data()
+        
+        with patch('export_parsed_data.export_data._export_to_csv') as mock_export_to_csv:
+            export_data(website_info)
+            # _export_to_csv should be called with correct parameters
+            mock_export_to_csv.assert_called_once_with(website_info, self.csv_export_dir, 'test_file')
 
     @patch('os.remove', side_effect=Exception("Cannot delete file"))
     def test_export_to_csv_handles_deletion_error(self, mock_remove):
