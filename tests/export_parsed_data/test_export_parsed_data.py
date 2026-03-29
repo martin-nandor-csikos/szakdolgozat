@@ -1,9 +1,9 @@
 import csv
 import os
-import sys
 import tempfile
 import unittest
 from datetime import datetime
+from unittest.mock import patch
 from export_parsed_data import export_data
 from export_parsed_data.export_data import _get_export_confirmation, _get_export_path, _get_file_name, _export_to_csv
 from .mock_data import (
@@ -13,8 +13,6 @@ from .mock_data import (
     get_mock_website_info_with_multiple_data_types,
 )
 from unittest.mock import patch
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 class ExportDataTest(unittest.TestCase):
     """Test class for the export_parsed_data module."""
@@ -127,7 +125,7 @@ class ExportDataTest(unittest.TestCase):
 
         # Verify CSV contents
         with open(csv_path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
+            reader = csv.DictReader(f, delimiter=';')
             rows = list(reader)
             self.assertGreater(len(rows), 0)
             # Check that all column headers are present
@@ -145,7 +143,7 @@ class ExportDataTest(unittest.TestCase):
 
         # Verify CSV has only Names column
         with open(csv_path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
+            reader = csv.DictReader(f, delimiter=';')
             self.assertEqual(len(reader.fieldnames), 1)
             self.assertIn("Names (found at link)", reader.fieldnames)
 
@@ -172,7 +170,7 @@ class ExportDataTest(unittest.TestCase):
 
         # Verify CSV contents
         with open(csv_path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
+            reader = csv.DictReader(f, delimiter=';')
             rows = list(reader)
             self.assertGreater(len(rows), 0)
             # Should have 3 columns (Names, Emails, Addresses)

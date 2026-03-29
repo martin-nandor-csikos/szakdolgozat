@@ -1,9 +1,5 @@
-import os
-import sys
 from unittest.mock import MagicMock
 from website.models import WebsiteInfo
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 def get_mock_parse():
     mock_driver = MagicMock()
