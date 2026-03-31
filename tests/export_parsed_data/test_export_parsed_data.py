@@ -1,6 +1,5 @@
 import csv
 import os
-import tempfile
 import unittest
 from datetime import datetime
 from unittest.mock import patch
@@ -14,6 +13,7 @@ from .mock_data import (
 )
 from unittest.mock import patch
 
+# The following unit test functions were created by GitHub Copilot and manually edited in some cases
 class ExportDataTest(unittest.TestCase):
     """Test class for the export_parsed_data module."""
 

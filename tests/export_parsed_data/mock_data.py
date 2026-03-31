@@ -1,5 +1,6 @@
 from website.models import WebsiteInfo
 
+# get_mock_website_info_with_all_data() was created by GitHub Copilot and manually edited
 def get_mock_website_info_with_all_data() -> WebsiteInfo:
     """Return a WebsiteInfo object with all data types populated."""
     return WebsiteInfo(
@@ -23,6 +24,7 @@ def get_mock_website_info_with_all_data() -> WebsiteInfo:
         },
     )
 
+# get_mock_website_info_with_names_only() was created by GitHub Copilot and manually edited
 def get_mock_website_info_with_names_only() -> WebsiteInfo:
     """Return a WebsiteInfo object with only names."""
     return WebsiteInfo(
@@ -36,6 +38,7 @@ def get_mock_website_info_with_names_only() -> WebsiteInfo:
         found_addresses={},
     )
 
+# get_mock_website_info_empty() was created by GitHub Copilot
 def get_mock_website_info_empty() -> WebsiteInfo:
     """Return an empty WebsiteInfo object."""
     return WebsiteInfo(
@@ -46,6 +49,7 @@ def get_mock_website_info_empty() -> WebsiteInfo:
         found_addresses={},
     )
 
+# get_mock_website_info_with_multiple_data_types() was created by GitHub Copilot and manually edited
 def get_mock_website_info_with_multiple_data_types() -> WebsiteInfo:
     """Return a WebsiteInfo object with mixed data types."""
     return WebsiteInfo(

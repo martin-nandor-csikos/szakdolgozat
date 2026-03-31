@@ -56,8 +56,8 @@ def _get_export_path() -> str:
      Returns:
         str: The path to the results folder
     """
-    root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-    results_folder = os.path.join(root_path, "results")
+    root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+    results_folder = os.path.join(root_path, Constants.RESULTS_FOLDER)
         
     if not os.path.exists(results_folder):
         try:
@@ -82,7 +82,7 @@ def _get_file_name(path: str) -> str | None:
         file_name = input().strip()
         error_occured = False
 
-        if file_name == "":
+        if len(file_name) == 0:
             console.print("[red]Empty file name. Please enter a valid name: [/red]")
             error_occured = True
 
@@ -90,36 +90,31 @@ def _get_file_name(path: str) -> str | None:
             console.print("[red]Invalid type for name. Please enter a valid name: [/red]")
             error_occured = True
 
-        max_file_name_length = 50
-        if len(file_name) > max_file_name_length:
-            console.print("[red]File name is too long. Please enter a shorter name: [/red]")
+        if len(file_name) > Constants.MAX_FILE_NAME_LENGTH:
+            console.print(f"[red]File name is too long. Please enter a shorter name (max {Constants.MAX_FILE_NAME_LENGTH} characters): [/red]")
             error_occured = True
 
         if " " in file_name:
-            console.print("[red]Invalid name, name contains spaces. Please enter a valid name: [/red]")
+            console.print("[red]Invalid name, name contains spaces. Please enter a name without spaces: [/red]")
             error_occured = True
 
         if not error_occured:
             break
     
-    full_path = os.path.join(path, f"{file_name}.csv")
+    full_path = os.path.join(path, file_name + Constants.CSV_EXTENSION)
     if os.path.exists(full_path):
-        overwrite_choice = _ask_overwrite_existing_file(full_path, file_name)
+        overwrite_choice = _ask_overwrite_existing_file()
         if overwrite_choice == ExportChoice.NO_EXPORT:
             return None
 
     # Removing the csv extension from the file name if it has one
-    if file_name.endswith(".csv"):
+    if file_name.endswith(Constants.CSV_EXTENSION):
         file_name = os.path.splitext(file_name)[0]
 
     return file_name
 
-def _ask_overwrite_existing_file(file_path: str, file_name: str) -> ExportChoice:
+def _ask_overwrite_existing_file() -> ExportChoice:
     """Ask the user if they want to overwrite an existing file with the same name.
-    
-        Arguments:
-            file_path (str): The path to the existing file
-            file_name (str): The name of the existing file
         Returns:
             ExportChoice: The user's choice to overwrite the existing file or not
     """
@@ -154,12 +149,12 @@ def _export_to_csv(info: WebsiteInfo, file_path: str, file_name: str):
     
     if info.has_data():
         data_columns = _get_data_columns(info)
-        full_path = os.path.join(file_path, f"{file_name}.csv")
+        full_path = os.path.join(file_path, file_name + Constants.CSV_EXTENSION)
         csv_file = None
         try:
-            with open(full_path, mode='w', newline='', encoding='utf-8') as csv_file:
+            with open(full_path, mode='w', newline='', encoding=Constants.UTF8_ENCODING) as csv_file:
                 columns = data_columns.keys()
-                writer = csv.DictWriter(csv_file, fieldnames=columns, delimiter=';', quoting=csv.QUOTE_NONNUMERIC)
+                writer = csv.DictWriter(csv_file, fieldnames=columns, delimiter=Constants.CSV_DELIMITER, quoting=csv.QUOTE_NONNUMERIC)
                 writer.writeheader()
 
                 # Unpack data column values to separate arguments for zip_longest
@@ -167,7 +162,7 @@ def _export_to_csv(info: WebsiteInfo, file_path: str, file_name: str):
                     row = dict(zip(columns, row_values))
                     writer.writerow(row)
 
-            console.print(f"[green]Export completed successfully to {file_path}/{file_name}.csv[/green]")
+            console.print(f"[green]Export completed successfully to {file_path}/{file_name}{Constants.CSV_EXTENSION}[/green]")
         except Exception as e:
             console.print(f"[red]Failed to export data to CSV: {e}[/red]")
             if csv_file is not None and os.path.exists(full_path):

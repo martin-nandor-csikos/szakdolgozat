@@ -1,11 +1,13 @@
 from unittest.mock import MagicMock
 from website.models import WebsiteInfo
 
+# get_mock_parse() was created by GitHub Copilot
 def get_mock_parse():
     mock_driver = MagicMock()
     mock_driver.page_source = get_html_content_basic()
     return mock_driver
 
+# get_mock_parse_all() was created by GitHub Copilot
 def get_mock_parse_all():
     return [
         WebsiteInfo(
@@ -45,6 +47,7 @@ def get_html_content_phones():
 def get_html_content_addresses():
     return HTML_CONTENT_ADDRESSES
 
+# The following HTML content samples were created by GitHub Copilot and manually edited in some cases
 HTML_CONTENT_BASIC = """
 <html>
     <body>
