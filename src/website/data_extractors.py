@@ -62,20 +62,20 @@ def get_sublinks(
     website_url_stripped: str = _get_stripped_link(website_url)
 
     # Loop through all the 'a' tags in the content and extract the links
-    for link_tag in content.find_all(Constants.HTML_LINK_TAG):
+    for link_tag in content.find_all("a"):
         if not isinstance(link_tag, Tag):
             raise TypeError(f"Invalid link_tag type. Expected type: Tag, actual type: {type(link_tag)}")
-        if not link_tag.has_attr(Constants.HTML_HREF):
+        if not link_tag.has_attr("href"):
             continue
 
-        href: str = str(link_tag.attrs[Constants.HTML_HREF])
+        href: str = str(link_tag.attrs["href"])
         href_stripped: str = _get_stripped_link(href)
         # Extract link that starts with a slash, like "/about"
         # File links are skipped
-        if href.startswith(Constants.SLASH) and not _is_file_url(href):
-            if Constants.HTML_ID in href:
-                href_stripped: str = href.split(Constants.HTML_ID)[0].rstrip(
-                    Constants.SPACE + Constants.SLASH
+        if href.startswith("/") and not _is_file_url(href):
+            if "#" in href:
+                href_stripped: str = href.split("#")[0].rstrip(
+                    " /"
                 )
                 found_url: str = website_url_stripped + href_stripped
             else:
@@ -85,11 +85,11 @@ def get_sublinks(
         # Extract full link
         # File links are skipped
         if hostname is not None and hostname in href and not _is_file_url(href):
-            if Constants.HTML_ID in href:
-                href_stripped: str = href.split(Constants.HTML_ID)[0].rstrip(
-                    Constants.SPACE + Constants.SLASH
+            if "#" in href:
+                href_stripped: str = href.split("#")[0].rstrip(
+                    " /"
                 )
-                found_url: str = href_stripped.split(Constants.HTML_ID)[0]
+                found_url: str = href_stripped.split("#")[0]
             else:
                 found_url: str = href_stripped
             new_urls.add(found_url)
@@ -131,13 +131,11 @@ def get_emails(
 
         for email in emails:
             if email not in new_emails.keys():
-                new_emails[email] = website_url.rstrip(
-                    Constants.SPACE + Constants.SLASH
-                )
+                new_emails[email] = website_url.rstrip(" /")
                 console.log(
                     f"[yellow]FOUND EMAIL[/]: [cyan]{email}[/] on [link={website_url}]{website_url}[/link]"
                 )
-                _set_information_printed()
+                set_information_printed()
 
     return new_emails
 
@@ -186,13 +184,11 @@ def get_names(
                 and name_regex.match(name)
                 and name not in new_names.keys()
             ):
-                new_names[name] = website_url.rstrip(
-                    Constants.SPACE + Constants.SLASH
-                )
+                new_names[name] = website_url.rstrip(" /")
                 console.log(
                     f"[yellow]FOUND NAME[/]: [cyan]{name}[/] on [link={website_url}]{website_url}[/link]"
                 )
-                _set_information_printed()
+                set_information_printed()
 
     return new_names
 
@@ -253,7 +249,7 @@ def get_phone_numbers(
             console.log(
                 f"[yellow]FOUND PHONE NUMBER[/]: [cyan]{phone_number}[/] on [link={website_url}]{website_url}[/link]"
             )
-            _set_information_printed()
+            set_information_printed()
 
     return new_phone_numbers
 
@@ -296,11 +292,9 @@ def get_addresses(
 
         parsed_dict = dict(parsed_address)
         # Check for essential components to avoid false positives
-        if 'city' in parsed_dict.values() and 'road' in parsed_dict.values() and 'postcode' in parsed_dict.values():
+        if all(component in parsed_dict.values() for component in Constants.ESSENTIAL_ADDRESS_COMPONENTS):
             # Min and Max are an arbitrary threshold to filter out non-addresses
-            min_component_count = 3
-            max_component_count = 10
-            if len(parsed_address) > min_component_count and len(parsed_address) < max_component_count:
+            if len(parsed_address) > Constants.MIN_ADDRESS_COMPONENTS and len(parsed_address) < Constants.MAX_ADDRESS_COMPONENTS:
                 # Reconstruct the address from the parsed components
                 full_address = " ".join(component for component, label in parsed_address)
 
@@ -309,9 +303,14 @@ def get_addresses(
                     console.log(
                         f"[yellow]FOUND ADDRESS[/]: [cyan]{full_address}[/] on [link={website_url}]{website_url}[/link]"
                     )
-                    _set_information_printed()
+                    set_information_printed()
 
     return new_addresses
+
+def set_information_printed():
+    """Set the data found flag to indicate that some data has been found during the parsing process."""
+    global information_printed
+    information_printed.set()
 
 def _is_file_url(url: str) -> bool:
     """Check if the given URL is a file or not.
@@ -327,32 +326,14 @@ def _is_file_url(url: str) -> bool:
     
     valid_webpage_extensions: set[str] = Constants.WEBPAGE_EXTENSIONS
     path: str = urlparse.urlparse(url).path
-    if Constants.EXTENSION_DOT in path:
-        extension: str = path.split(Constants.EXTENSION_DOT)[1]
+    if "." in path:
+        extension: str = path.split(".")[1]
         if extension not in valid_webpage_extensions:
             return True
 
     return False
 
-@lru_cache(maxsize=1)
-def _get_hu_model()-> Language:
-    """Get the hungarian Spacy model.
-
-    Returns:
-        Hungarian Spacy model
-    """
-    return spacy.load(Constants.SPACY_MODEL_HU)
-
-@lru_cache(maxsize=1)
-def _get_en_model() -> Language:
-    """Get the english Spacy model.
-
-    Returns:
-        English Spacy model
-    """
-    return spacy.load(Constants.SPACY_MODEL_EN)
-
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=Constants.LRU_CACHE_MAXSIZE)
 def _get_spacy_model(tld: str) -> Language:
     """Return the Spacy model based on the top-level domain.
 
@@ -366,8 +347,8 @@ def _get_spacy_model(tld: str) -> Language:
         raise TypeError(f"Invalid tld type. Expected type: str, actual type: {type(tld)}")
     
     if tld == Constants.HU_TOP_LEVEL_DOMAIN:
-        return _get_hu_model()
-    return _get_en_model()
+        return spacy.load(Constants.SPACY_MODEL_HU)
+    return spacy.load(Constants.SPACY_MODEL_EN)
 
 def _get_tld(website_url: str) -> str:
     """Get the top-level domain from the given website URL.
@@ -389,10 +370,5 @@ def _get_stripped_link(link: str) -> str:
         link (str): A link to a website
     Returns:
         str: Stripped version of the link
-    """    
-    return link.rstrip(Constants.SPACE + Constants.SLASH)
-
-def _set_information_printed():
-    """Set the data found flag to indicate that some data has been found during the parsing process."""
-    global information_printed
-    information_printed.set()
+    """
+    return link.rstrip(" /")

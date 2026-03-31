@@ -1,5 +1,3 @@
-import os
-import sys
 import unittest
 from bs4 import BeautifulSoup
 from unittest.mock import patch
@@ -15,8 +13,7 @@ from website import (
     get_addresses,
 )
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
-
+# The following unit test functions were created by GitHub Copilot and manually edited in some cases
 class WebsiteTest(unittest.TestCase):
     """Test class for the website module."""
 

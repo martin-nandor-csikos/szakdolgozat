@@ -1,11 +1,11 @@
 from bs4 import BeautifulSoup
 from collections import deque
-from .data_extractors import information_printed, _set_information_printed
+from .data_extractors import information_printed, set_information_printed
 from rich.console import Console
 from selenium import webdriver
 from website import constants as Constants
 from .models import WebsiteInfo
-from .data_extractors import *
+from .data_extractors import get_data_from_content
 import random
 import spacy
 import time
@@ -33,7 +33,7 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
         raise TypeError(f"Invalid info type. Expected type: WebsiteInfo, actual type: {type(info)}")
 
     # Starting heartbeat thread
-    heartbeat_thread = threading.Thread(target=_print_heartbeat_message, daemon=True)
+    heartbeat_thread = threading.Thread(target=_print_heartbeat_message, args=(Constants.HEARTBEAT_INTERVAL_SECONDS,), daemon=True)
     heartbeat_thread.start()
 
     content: BeautifulSoup = _get_website_content(website_url)
@@ -54,7 +54,7 @@ def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
     if not isinstance(sublinks_to_visit, int):
         raise TypeError(f"Invalid sublinks_to_visit type. Expected type: int, actual type: {type(sublinks_to_visit)}")
     if sublinks_to_visit < 0:
-            raise ValueError("The maximum number of subpages to visit must be at least 0 or more")
+        raise ValueError("The maximum number of subpages to visit must be at least 0 or more")
 
     visited_urls: set = set()
     url_queue: deque[str] = deque([website_url])
@@ -75,10 +75,10 @@ def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
             continue
 
         console.log(f"Parsing [link={url}]{url}[/link]")
-        _set_information_printed()
+        set_information_printed()
         info = parse(url, info)
         console.log(f"[green]Parsing completed[/green]")
-        _set_information_printed()
+        set_information_printed()
         visited_urls.add(url)
         websites_parsed += 1
 
@@ -112,9 +112,9 @@ def _get_website_content(url: str) -> BeautifulSoup:
         raise ValueError(f"Invalid URL: {url}")
 
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless')
+    options.add_argument(Constants.WEBDRIVER_HEADLESS_ARGUMENT)
 
-    driver = webdriver.Remote("http://chrome_selenium:4444/wd/hub", options=options)
+    driver = webdriver.Remote(Constants.WEBDRIVER_REMOTE_URL, options=options)
     driver.get(url)
     website_page_source: str = driver.page_source
     content = BeautifulSoup(website_page_source, Constants.BEAUTIFULSOUP_HTML_PARSER)
@@ -122,7 +122,7 @@ def _get_website_content(url: str) -> BeautifulSoup:
 
     return content
 
-def _print_heartbeat_message(interval = 20):
+def _print_heartbeat_message(interval):
     """Print random heartbeat messages at regular intervals to indicate that parsing is still ongoing.
     
     Arguments:

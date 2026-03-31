@@ -1,5 +1,4 @@
 from export_parsed_data import export_data
-# from linkedin_links import get_links
 from website import WebsiteInfo, parse_all
 import argparse
 import validators
@@ -15,11 +14,6 @@ def main() -> None:
 
     # Parse the given website
     website_info: WebsiteInfo = parse_all(args.link, args.sublinks)
-
-    # Find LinkedIn links for the found names
-    if len(website_info.found_names) != 0:
-        names_list = list(website_info.found_names.keys())
-        # print(get_links(names_list, args.company))
 
     # Export the parsed data to a CSV file
     if website_info.has_data():
