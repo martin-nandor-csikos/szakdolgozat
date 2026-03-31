@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 from collections import deque
+from .data_extractors import information_printed, _set_information_printed
 from rich.console import Console
 from selenium import webdriver
 from website import constants as Constants
@@ -74,8 +75,10 @@ def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
             continue
 
         console.log(f"Parsing [link={url}]{url}[/link]")
+        _set_information_printed()
         info = parse(url, info)
         console.log(f"[green]Parsing completed[/green]")
+        _set_information_printed()
         visited_urls.add(url)
         websites_parsed += 1
 
@@ -133,4 +136,8 @@ def _print_heartbeat_message(interval = 20):
         time.sleep(interval)
         if parsing_finished.is_set():
             break
-        console.print(random.choice(Constants.HEARTBEAT_MESSAGES))
+
+        # Skip printing heartbeat message if information was printed recently to avoid cluttering the console
+        if not information_printed.is_set():
+            console.print(random.choice(Constants.HEARTBEAT_MESSAGES))
+        information_printed.clear()

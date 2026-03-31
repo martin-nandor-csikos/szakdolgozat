@@ -1,5 +1,4 @@
 from bs4 import BeautifulSoup, Tag, ResultSet
-from concurrent.futures import Future, ProcessPoolExecutor
 from functools import lru_cache
 from postal.parser import parse_address
 from rich.console import Console
@@ -11,9 +10,11 @@ from .models import WebsiteInfo
 import phonenumbers
 import re
 import spacy
+import threading
 import validators
 
 console = Console(log_path=False)
+information_printed = threading.Event()
 
 def get_data_from_content(
     info: WebsiteInfo, website_url: str, content: BeautifulSoup
@@ -28,29 +29,11 @@ def get_data_from_content(
     Returns:
         WebsiteInfo: The information found during the parsing process
     """
-    # Parse the content for information with multiprocessing
-    with ProcessPoolExecutor() as executor:
-        links: Future[set[str]] = executor.submit(
-            get_sublinks, website_url, content, info.found_urls
-        )
-        emails: Future[dict[str, str]] = executor.submit(
-            get_emails, website_url, content, info.found_emails
-        )
-        names: Future[dict[str, str]] = executor.submit(
-            get_names, website_url, content, info.found_names
-        )
-        phone_numbers: Future[dict[str, str]] = executor.submit(
-            get_phone_numbers, website_url, content, info.found_phone_numbers
-        )
-        addresses: Future[dict[str, str]] = executor.submit(
-            get_addresses, website_url, content, info.found_addresses
-        )
-
-        found_links: set[str] = links.result()
-        found_emails: dict[str, str] = emails.result()
-        found_names: dict[str, str] = names.result()
-        found_phone_numbers: dict[str, str] = phone_numbers.result()
-        found_addresses: dict[str, str] = addresses.result()
+    found_links = get_sublinks(website_url, content, info.found_urls)
+    found_emails = get_emails(website_url, content, info.found_emails)
+    found_names = get_names(website_url, content, info.found_names)
+    found_phone_numbers = get_phone_numbers(website_url, content, info.found_phone_numbers)
+    found_addresses = get_addresses(website_url, content, info.found_addresses)
 
     return WebsiteInfo(found_links, found_emails, found_names, found_phone_numbers, found_addresses)
 
@@ -154,6 +137,7 @@ def get_emails(
                 console.log(
                     f"[yellow]FOUND EMAIL[/]: [cyan]{email}[/] on [link={website_url}]{website_url}[/link]"
                 )
+                _set_information_printed()
 
     return new_emails
 
@@ -208,6 +192,7 @@ def get_names(
                 console.log(
                     f"[yellow]FOUND NAME[/]: [cyan]{name}[/] on [link={website_url}]{website_url}[/link]"
                 )
+                _set_information_printed()
 
     return new_names
 
@@ -268,6 +253,7 @@ def get_phone_numbers(
             console.log(
                 f"[yellow]FOUND PHONE NUMBER[/]: [cyan]{phone_number}[/] on [link={website_url}]{website_url}[/link]"
             )
+            _set_information_printed()
 
     return new_phone_numbers
 
@@ -323,6 +309,7 @@ def get_addresses(
                     console.log(
                         f"[yellow]FOUND ADDRESS[/]: [cyan]{full_address}[/] on [link={website_url}]{website_url}[/link]"
                     )
+                    _set_information_printed()
 
     return new_addresses
 
@@ -404,3 +391,8 @@ def _get_stripped_link(link: str) -> str:
         str: Stripped version of the link
     """    
     return link.rstrip(Constants.SPACE + Constants.SLASH)
+
+def _set_information_printed():
+    """Set the data found flag to indicate that some data has been found during the parsing process."""
+    global information_printed
+    information_printed.set()
