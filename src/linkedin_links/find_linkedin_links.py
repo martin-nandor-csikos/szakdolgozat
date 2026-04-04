@@ -1,49 +1,48 @@
-from export_parsed_data import constants as Constants
-from googlesearch import search
-from itertools import permutations
+from linkedin_links import constants as Constants
+from ddgs import DDGS
 from rich.console import Console
-from website import WebsiteInfo
+import threading
 import time
 
 console = Console(log_path=False)
 
-def get_links(names: list[str], company: str):
-    """Get the Google search links from the user input.
+def fetch_links(company: str, profile_count: int) -> dict[str, str]:
+    """Get the search links from the user input using DuckDuckGo.
     
      Returns:
-        list[str]: The list of Google search links provided by the user
+        dict[str, str]: The dictionary of profile links and names. Key: url, Value: name
     """
-    links = list()
-    for name in names:
-        # Create different combinations of the name to increase the chances
-        # Append every combination with OR in the query
-        name_combinations = _get_name_combinations(name)
-        name_combinations_in_query = ""
-        for name_combination in name_combinations:
-            if name_combination is not name_combinations[-1]:
-                name_combinations_in_query += f"\"{name_combination}\" OR "
-            else:
-                name_combinations_in_query += f"\"{name_combination}\""
+    profiles = dict()
+    search_query = f"\"{company}\" site:linkedin.com/in"
 
-        search_query = f"\"{company}\" {name_combinations_in_query} site:linkedin.com/in"
+    stop_event = threading.Event()
+    heartbeat_thread = threading.Thread(target=_result_count_heartbeat, args=(profiles, stop_event), daemon=True)
+    heartbeat_thread.start()
 
-        # Add checking name in title
-        results = search(search_query, advanced=True)
-        for url in results:
-            links.append(url)
+    try:
+        ddgs = DDGS()
+        results = ddgs.text(search_query, max_results=profile_count, region=Constants.HU_REGION)
+        
+        for result in results:
+            result_url = result['href']
+            result_title = result['title']
+            
+            # Get the person's name from the title
+            # Title is usually formatted as "Name - Company" or "Name - Title at Company"
+            result_name = result_title.split(" - ")[0].strip()
+            profiles[result_url] = result_name
 
-        time.sleep(3)
+        if len(profiles) < profile_count:
+            console.print(f"[yellow]Only {len(profiles)} profile links were found.[/yellow]")
+    finally:
+        stop_event.set()
+        heartbeat_thread.join(timeout=1)
 
+    print(profiles)
+    return profiles
 
-    print(links)
-    return links
-
-def _get_name_combinations(name: str) -> list[str]:
-    """Get different combinations of the given name to increase the chances of finding the LinkedIn profile.
-
-     Returns:
-        list[str]: The list of name combinations
-    """
-    parts = name.split()
-    all_orders = [" ".join(p) for p in permutations(parts)]
-    return all_orders
+def _result_count_heartbeat(profiles: dict, stop_event: threading.Event):
+    """Print the count of found results every 10 seconds."""
+    while not stop_event.is_set():
+        time.sleep(Constants.HEARTBEAT_INTERVAL_SECONDS)
+        console.print(f"{len(profiles)} profile links found so far...")
