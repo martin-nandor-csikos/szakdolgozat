@@ -32,12 +32,17 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
     if not isinstance(info, WebsiteInfo):
         raise TypeError(f"Invalid info type. Expected type: WebsiteInfo, actual type: {type(info)}")
 
-    # Starting heartbeat thread
-    heartbeat_thread = threading.Thread(target=_print_heartbeat_message, args=(Constants.HEARTBEAT_INTERVAL_SECONDS,), daemon=True)
+    # Starting heartbeat thread with local stop event
+    stop_event = threading.Event()
+    heartbeat_thread = threading.Thread(target=_print_heartbeat_message, args=(stop_event,), daemon=True)
     heartbeat_thread.start()
 
-    content: BeautifulSoup = _get_website_content(website_url)
-    return get_data_from_content(info, website_url, content)
+    try:
+        content: BeautifulSoup = _get_website_content(website_url)
+        return get_data_from_content(info, website_url, content)
+    finally:
+        stop_event.set()
+        heartbeat_thread.join(timeout=1)
 
 def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
     """Parse for links in the given website, then recursively parse the found links for information.
@@ -93,10 +98,6 @@ def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
     if not info.has_data():
         console.log("[red]No data found during the parsing process :([/red]")
 
-    # Set parsing finished event to stop heartbeat thread
-    global parsing_finished
-    parsing_finished.set()
-
     return info
 
 def _get_website_content(url: str) -> BeautifulSoup:
@@ -122,19 +123,16 @@ def _get_website_content(url: str) -> BeautifulSoup:
 
     return content
 
-def _print_heartbeat_message(interval):
+def _print_heartbeat_message(stop_event: threading.Event):
     """Print random heartbeat messages at regular intervals to indicate that parsing is still ongoing.
     
     Arguments:
-        interval (int): The interval in seconds between heartbeat messages
+        stop_event (threading.Event): Event to signal the thread to stop
     """
-    if not isinstance(interval, int):
-        raise TypeError(f"Invalid interval type. Expected type: int, actual type: {type(interval)}")
-    
     # Run until stop event is set
-    while not parsing_finished.is_set():
-        time.sleep(interval)
-        if parsing_finished.is_set():
+    while not stop_event.is_set():
+        time.sleep(Constants.HEARTBEAT_INTERVAL_SECONDS)
+        if stop_event.is_set():
             break
 
         # Skip printing heartbeat message if information was printed recently to avoid cluttering the console
