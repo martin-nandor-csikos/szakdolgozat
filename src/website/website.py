@@ -1,28 +1,27 @@
 from bs4 import BeautifulSoup
 from collections import deque
 from .data_extractors import information_printed, set_information_printed
+from globals.enums import DataLanguage
 from rich.console import Console
 from selenium import webdriver
 from website import constants as Constants
 from .models import WebsiteInfo
 from .data_extractors import get_data_from_content
 import random
-import spacy
 import time
 import threading
 import validators
 
 console = Console(log_path=False)
-HU_MODEL = spacy.load(Constants.SPACY_MODEL_HU)
-EN_MODEL = spacy.load(Constants.SPACY_MODEL_EN)
 parsing_finished = threading.Event()
 
-def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
+def parse(website_url: str, info: WebsiteInfo, language: DataLanguage) -> WebsiteInfo:
     """Parse the given website for information.
 
     Arguments:
         website_url (str): The website's URL to parse
         info (WebsiteInfo): Object of the already found information
+        language (DataLanguage): The primary language format for data to be found
 
     Returns:
         WebsiteInfo: The information found during the parsing process
@@ -31,6 +30,8 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
         raise ValueError(f"Invalid URL: {website_url}")
     if not isinstance(info, WebsiteInfo):
         raise TypeError(f"Invalid info type. Expected type: WebsiteInfo, actual type: {type(info)}")
+    if not isinstance(language, DataLanguage):
+        raise TypeError(f"Invalid language type. Expected type: DataLanguage, actual type: {type(language)}")
 
     # Starting heartbeat thread with local stop event
     stop_event = threading.Event()
@@ -39,17 +40,19 @@ def parse(website_url: str, info: WebsiteInfo) -> WebsiteInfo:
 
     try:
         content: BeautifulSoup = _get_website_content(website_url)
-        return get_data_from_content(info, website_url, content)
+        data = get_data_from_content(info, website_url, content, language)
     finally:
         stop_event.set()
         heartbeat_thread.join(timeout=1)
+    return data
 
-def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
+def parse_all(website_url: str, sublinks_to_visit: int, language: DataLanguage) -> WebsiteInfo:
     """Parse for links in the given website, then recursively parse the found links for information.
 
     Arguments:
         website_url (str): The website's URL to parse
         number_of_links_to_visit (int): The maximum number of links to visit and parse
+        language (DataLanguage): The primary language format for data to be found
 
     Returns:
         WebsiteInfo: The information found during the parsing process
@@ -60,6 +63,8 @@ def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
         raise TypeError(f"Invalid sublinks_to_visit type. Expected type: int, actual type: {type(sublinks_to_visit)}")
     if sublinks_to_visit < 0:
         raise ValueError("The maximum number of subpages to visit must be at least 0 or more")
+    if not isinstance(language, DataLanguage):
+        raise TypeError(f"Invalid language type. Expected type: DataLanguage, actual type: {type(language)}")
 
     visited_urls: set = set()
     url_queue: deque[str] = deque([website_url])
@@ -81,7 +86,7 @@ def parse_all(website_url: str, sublinks_to_visit: int) -> WebsiteInfo:
 
         console.log(f"Parsing [link={url}]{url}[/link]")
         set_information_printed()
-        info = parse(url, info)
+        info = parse(url, info, language)
         console.log(f"[green]Parsing completed[/green]")
         set_information_printed()
         visited_urls.add(url)

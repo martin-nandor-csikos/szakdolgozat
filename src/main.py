@@ -1,3 +1,4 @@
+from globals.enums import DataLanguage
 from export_parsed_data import export_data
 from linkedin_links import fetch_links
 from website import WebsiteInfo, parse_all
@@ -14,14 +15,14 @@ def main() -> None:
         return
 
     # Parse the given website
-    website_info: WebsiteInfo = parse_all(args.link, args.sublinks)
+    website_info: WebsiteInfo = parse_all(args.link, args.sublinks, args.language)
 
     # Export the parsed data to a CSV file
     if website_info.has_data():
         export_data(website_info)
 
     if args.profiles > 0:
-        profile_links = fetch_links(args.company, args.profiles)
+        profile_links = fetch_links(args.company, args.profiles, args.language)
 
 def _get_args() -> argparse.Namespace:
     """Get the input arguments from the user using argparse.
@@ -46,6 +47,12 @@ def _get_args() -> argparse.Namespace:
         required=True,
         type=str,
         help="Website URL to parse (required)"
+    )
+    parser.add_argument(
+        '--language',
+        required=True,
+        type=str,
+        help="The primary language format for data to be found. Supported languages: English (en), Hungarian (hu) (required)"
     )
     parser.add_argument(
         '-s', '--sublinks',
@@ -84,6 +91,14 @@ def _get_args() -> argparse.Namespace:
         raise ValueError("Argument --company is set but --profiles isn't. Both arguments must be provided for LinkedIn profile fetching.")
     if args.profiles > 200:
         raise ValueError("The maximum number of LinkedIn profiles to fetch must be at most 200")
+    if args.language.lower() not in [DataLanguage.ENGLISH.value, DataLanguage.HUNGARIAN.value]:
+        raise ValueError("Unsupported language. Supported languages: English (en), Hungarian (hu)")
+    
+    if args.language == DataLanguage.HUNGARIAN.value:
+        args.language = DataLanguage.HUNGARIAN
+    else:
+        args.language = DataLanguage.ENGLISH
+
     return args
 
 if __name__ == "__main__":

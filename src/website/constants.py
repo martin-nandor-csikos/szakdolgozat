@@ -1,15 +1,9 @@
 WEBDRIVER_HEADLESS_ARGUMENT = "--headless"
 WEBDRIVER_REMOTE_URL = "http://chrome_selenium:4444/wd/hub"
-HU_TOP_LEVEL_DOMAIN = "hu"
-UK_TOP_LEVEL_DOMAIN = "uk"
-GB_ISO_CODE = "GB"
-NON_COUNTRY_TOP_LEVEL_DOMAIN_WITH_TWO_LETTERS: list[str] = ["eu", "su"]
 BEAUTIFULSOUP_HTML_PARSER = "html.parser"
 WEBPAGE_EXTENSIONS: set[str] = {"html", "htm", "php", "asp", "aspx", "jsp"}
 # EMAIL_REGEX regex was created by GitHub Copilot
 EMAIL_REGEX = r"([a-zA-Z0-9_.+-]+@(?:[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*\.)+[a-zA-Z]{2,})"
-SPACY_LANGUAGE_HUNGARIAN = "hu"
-SPACY_LANGUAGE_ENGLISH = "en"
 SPACY_ENTITY_PERSON_HUNGARIAN = "PER"
 SPACY_ENTITY_PERSON_ENGLISH = "PERSON"
 SPACY_MODEL_HU = "hu_core_news_lg"

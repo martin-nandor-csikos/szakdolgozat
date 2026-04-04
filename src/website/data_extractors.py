@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup, Tag, ResultSet
 from functools import lru_cache
+from globals.enums import DataLanguage
 from postal.parser import parse_address
 from rich.console import Console
 from spacy.language import Language
@@ -17,7 +18,7 @@ console = Console(log_path=False)
 information_printed = threading.Event()
 
 def get_data_from_content(
-    info: WebsiteInfo, website_url: str, content: BeautifulSoup
+    info: WebsiteInfo, website_url: str, content: BeautifulSoup, language: DataLanguage
 ) -> WebsiteInfo:
     """Parse the given HTML content for information.
 
@@ -25,14 +26,15 @@ def get_data_from_content(
         info (WebsiteInfo): Object of the already found information
         website_url (str): The website's URL
         content (BeautifulSoup): The HTML content to parse
+        language (DataLanguage): The primary language format for data to be found
 
     Returns:
         WebsiteInfo: The information found during the parsing process
     """
     found_links = get_sublinks(website_url, content, info.found_urls)
     found_emails = get_emails(website_url, content, info.found_emails)
-    found_names = get_names(website_url, content, info.found_names)
-    found_phone_numbers = get_phone_numbers(website_url, content, info.found_phone_numbers)
+    found_names = get_names(website_url, content, info.found_names, language)
+    found_phone_numbers = get_phone_numbers(website_url, content, info.found_phone_numbers, language)
     found_addresses = get_addresses(website_url, content, info.found_addresses)
 
     return WebsiteInfo(found_links, found_emails, found_names, found_phone_numbers, found_addresses)
@@ -140,7 +142,7 @@ def get_emails(
     return new_emails
 
 def get_names(
-    website_url: str, content: BeautifulSoup, previous_names: dict[str, str]
+    website_url: str, content: BeautifulSoup, previous_names: dict[str, str], language: DataLanguage
 ) -> dict[str, str]:
     """Parse the given HTML content for names.
 
@@ -148,6 +150,7 @@ def get_names(
         website_url (str): The website's URL
         content (BeautifulSoup): The HTML content to parse
         found_names (dict): Previously found names
+        language (DataLanguage): The primary language format for data to be found
 
     Returns:
         A dictionary of all the names found in the HTML content. Key: name, Value: URL where the name was found
@@ -158,10 +161,11 @@ def get_names(
         raise TypeError(f"Invalid content type, Expected type: BeautifulSoup, actual type: {type(content)}")
     if not isinstance(previous_names, dict):
         raise TypeError(f"Invalid previous_names type. Expected type: dict, actual type: {type(previous_names)}")
+    if not isinstance(language, DataLanguage):
+        raise TypeError(f"Invalid language type. Expected type: DataLanguage, actual type: {type(language)}")
 
     new_names: dict[str, str] = previous_names
-    top_level_domain: str = _get_tld(website_url)
-    nlp: Language = _get_spacy_model(top_level_domain)
+    nlp: Language = _get_spacy_model(language)
     name_regex: re.Pattern[str] = re.compile(Constants.NAME_REGEX)
     text_tags: ResultSet[Tag] = content.find_all(Constants.HTML_TEXT_TAGS)
 
@@ -193,7 +197,7 @@ def get_names(
     return new_names
 
 def get_phone_numbers(
-    website_url: str, content: BeautifulSoup, previous_phone_numbers: dict[str, str]
+    website_url: str, content: BeautifulSoup, previous_phone_numbers: dict[str, str], language: DataLanguage
 ) -> dict[str, str]:
     """Parse the given HTML content for phone numbers.
 
@@ -201,6 +205,7 @@ def get_phone_numbers(
         website_url (str): The website's URL
         content (BeautifulSoup): The HTML content to parse
         found_phone_numbers (dict): Previously found phone numbers
+        language (DataLanguage): The primary language format for data to be found
 
     Returns:
         A dictionary of all the phone numbers found in the HTML content. Key: phone number, Value: URL where the number was found
@@ -211,31 +216,17 @@ def get_phone_numbers(
         raise TypeError(f"Invalid content type, Expected type: BeautifulSoup, actual type: {type(content)}")
     if not isinstance(previous_phone_numbers, dict):
         raise TypeError(f"Invalid previous_phone_numbers type. Expected type: dict, actual type: {type(previous_phone_numbers)}")
+    if not isinstance(language, DataLanguage):
+        raise TypeError(f"Invalid language type. Expected type: DataLanguage, actual type: {type(language)}")
 
     new_phone_numbers: dict[str, str] = previous_phone_numbers
     html_content: str = content.decode()
-    top_level_domain = _get_tld(website_url)
-
-    # The UK TLD is replaced with GB for phone number parsing, every other ccTLD matches the ISO code
-    if top_level_domain == Constants.UK_TOP_LEVEL_DOMAIN:
-        top_level_domain = Constants.GB_ISO_CODE
-
-    # If the TLD is 2 characters long, it's a country code except for EU and SU
-    # If not, it's an unknown region ("ZZ")
-    if (
-        len(top_level_domain) == 2
-        and top_level_domain
-        not in Constants.NON_COUNTRY_TOP_LEVEL_DOMAIN_WITH_TWO_LETTERS
-    ):
-        phone_number_region: str = top_level_domain.upper()
-    else:
-        phone_number_region: str = Constants.PHONE_NUMBER_UNKNOWN_REGION
 
     website_url_stripped: str = _get_stripped_link(website_url)
 
     # Iterate through the phone number matches
     for phone_number_match in phonenumbers.PhoneNumberMatcher(
-        html_content, phone_number_region
+        html_content, language.value.upper()
     ):
         if not isinstance(phone_number_match, phonenumbers.PhoneNumberMatch):
             raise TypeError(f"Invalid phone_number_match type. Expected type: PhoneNumberMatch, actual type: {type(phone_number_match)}")
@@ -334,34 +325,21 @@ def _is_file_url(url: str) -> bool:
     return False
 
 @lru_cache(maxsize=Constants.LRU_CACHE_MAXSIZE)
-def _get_spacy_model(tld: str) -> Language:
-    """Return the Spacy model based on the top-level domain.
+def _get_spacy_model(language: DataLanguage) -> Language:
+    """Return the Spacy model based on the language.
 
     Arguments:
-        tld (str): The top-level domain of the website
+        language (DataLanguage): The language of the website
 
     Returns:
         The Spacy model to be returned
     """
-    if not isinstance(tld, str):
-        raise TypeError(f"Invalid tld type. Expected type: str, actual type: {type(tld)}")
+    if not isinstance(language, DataLanguage):
+        raise TypeError(f"Invalid language type. Expected type: DataLanguage, actual type: {type(language)}")
     
-    if tld == Constants.HU_TOP_LEVEL_DOMAIN:
+    if language == DataLanguage.HUNGARIAN:
         return spacy.load(Constants.SPACY_MODEL_HU)
     return spacy.load(Constants.SPACY_MODEL_EN)
-
-def _get_tld(website_url: str) -> str:
-    """Get the top-level domain from the given website URL.
-
-    Arguments:
-        website_url (str): The website's URL
-    Returns:
-        The top-level domain of the website
-    """
-    if not validators.url(website_url):
-        raise ValueError(f"Invalid URL: {website_url}")
-    
-    return urlparse.urlparse(website_url).netloc.split(".")[-1]
 
 def _get_stripped_link(link: str) -> str:
     """Get the stripped version of the given link.
