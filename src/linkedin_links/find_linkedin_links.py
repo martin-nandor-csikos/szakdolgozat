@@ -1,4 +1,4 @@
-from globals.enums import DataLanguage
+from globals.enums import DataRegion
 from linkedin_links import constants as Constants
 from ddgs import DDGS
 from rich.console import Console
@@ -7,7 +7,7 @@ import time
 
 console = Console(log_path=False)
 
-def fetch_links(company: str, profile_count: int, language: str) -> dict[str, str]:
+def fetch_links(company: str, profile_count: int, region: DataRegion) -> dict[str, str]:
     """Get the search links from the user input using DuckDuckGo.
     
      Returns:
@@ -19,8 +19,8 @@ def fetch_links(company: str, profile_count: int, language: str) -> dict[str, st
         raise TypeError(f"Invalid profile_count type. Expected type: int, actual type: {type(profile_count)}")
     if profile_count < 1:
         raise ValueError("The number of profiles to fetch must be at least 1 or more")
-    if not isinstance(language, str):
-        raise TypeError(f"Invalid language type. Expected type: str, actual type: {type(language)}")
+    if not isinstance(region, DataRegion):
+        raise TypeError(f"Invalid region type. Expected type: DataRegion, actual type: {type(region)}")
     
     profiles = dict()
 
@@ -28,14 +28,20 @@ def fetch_links(company: str, profile_count: int, language: str) -> dict[str, st
     heartbeat_thread = threading.Thread(target=_result_count_heartbeat, args=(profiles, stop_event), daemon=True)
     heartbeat_thread.start()
 
-    if language == DataLanguage.HUNGARIAN.value:
-        search_language = Constants.HU_REGION
-    else:
-        search_language = Constants.US_REGION
+    match region.value.lower():
+        case DataRegion.HUNGARY.value:
+            search_region = Constants.HU_REGION
+        case DataRegion.UNITED_STATES.value:
+            search_region = Constants.US_REGION
+        case _:
+            search_region = Constants.UK_REGION
 
     try:
-        search_query = f"\"{company}\" {Constants.LINKEDIN_SITE}"
-        profiles = _get_profile_results(search_query, profile_count, search_language)
+        if region == DataRegion.HUNGARY:
+            search_query = f"\"{company}\" {Constants.LINKEDIN_SITE_HU} {Constants.EXCLUDED_PAGES}"
+        else:
+            search_query = f"\"{company}\" {Constants.LINKEDIN_SITE_ALL} {Constants.EXCLUDED_PAGES}"
+        profiles = _get_profile_results(search_query, profile_count, search_region)
     finally:
         stop_event.set()
         heartbeat_thread.join(timeout=1)
@@ -46,13 +52,13 @@ def fetch_links(company: str, profile_count: int, language: str) -> dict[str, st
     print(profiles)
     return profiles
 
-def _get_profile_results(search_query: str, profile_count: int, search_language: str) -> dict[str, str]:
-    """Get the search results from DuckDuckGo based on the search query, profile count and search language.
+def _get_profile_results(search_query: str, profile_count: int, search_region: str) -> dict[str, str]:
+    """Get the search results from DuckDuckGo based on the search query, profile count and search region.
     
     Arguments:
         search_query (str): The search query to use
         profile_count (int): The maximum number of profiles to fetch
-        search_language (str): The region to use for the search
+        search_region (str): The region to use for the search
 
     Returns:
         dict[str, str]: The dictionary of profile links and names. Key: url, Value: name
@@ -61,22 +67,40 @@ def _get_profile_results(search_query: str, profile_count: int, search_language:
         raise TypeError(f"Invalid search_query type. Expected type: str, actual type: {type(search_query)}")
     if not isinstance(profile_count, int):
         raise TypeError(f"Invalid profile_count type. Expected type: int, actual type: {type(profile_count)}")
-    if not isinstance(search_language, str):
-        raise TypeError(f"Invalid search_language type. Expected type: str, actual type: {type(search_language)}")
+    if not isinstance(search_region, str):
+        raise TypeError(f"Invalid search_region type. Expected type: str, actual type: {type(search_region)}")
     
     ddgs = DDGS()
-    results = ddgs.text(search_query, max_results=profile_count, region=search_language)
+    results = ddgs.text(search_query, max_results=profile_count*2, region=search_region)
     profiles = dict()
+    skip_count = 0
 
     for result in results:
         result_url = result['href']
         result_title = result['title']
         
+        # Filter to only LinkedIn profile URLs
+        if 'linkedin' not in result_url or '/in/' not in result_url:
+            skip_count += 1
+            print(f"SKIPPED: {skip_count}, {result_url}")
+            continue
+        
         # Get the person's name from the title
         # Title is usually formatted as "Name - Company" or "Name - Title at Company"
-        result_name = result_title.split(" - ")[0].strip()
+        result_name = result_title.strip()
+        if " -" in result_name:
+            result_name = result_name.split(" -")[0].strip()
+        # Em dash
+        if " –" in result_name:
+            result_name = result_name.split(" –")[0].strip()
+        if "," in result_name:
+            result_name = result_name.split(",")[0].strip()
+
         profiles[result_url] = result_name
-    
+
+        if len(profiles) >= profile_count:
+            break
+
     return profiles
 
 def _result_count_heartbeat(profiles: dict, stop_event: threading.Event):
