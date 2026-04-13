@@ -1,5 +1,6 @@
 from enum import Enum
 
-class DataLanguage(Enum):
-    HUNGARIAN = 'hu'
-    ENGLISH = 'en'
+class DataRegion(Enum):
+    HUNGARY = 'hu'
+    UNITED_STATES = 'us'
+    GREAT_BRITAIN = 'gb'

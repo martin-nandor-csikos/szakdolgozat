@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup, Tag, ResultSet
 from functools import lru_cache
-from globals.enums import DataLanguage
+from globals.enums import DataRegion
 from postal.parser import parse_address
 from rich.console import Console
 from spacy.language import Language
@@ -18,7 +18,7 @@ console = Console(log_path=False)
 information_printed = threading.Event()
 
 def get_data_from_content(
-    info: WebsiteInfo, website_url: str, content: BeautifulSoup, language: DataLanguage
+    info: WebsiteInfo, website_url: str, content: BeautifulSoup, region: DataRegion
 ) -> WebsiteInfo:
     """Parse the given HTML content for information.
 
@@ -26,16 +26,16 @@ def get_data_from_content(
         info (WebsiteInfo): Object of the already found information
         website_url (str): The website's URL
         content (BeautifulSoup): The HTML content to parse
-        language (DataLanguage): The primary language format for data to be found
+        region (DataRegion): The primary region for data to be found
 
     Returns:
         WebsiteInfo: The information found during the parsing process
     """
     found_links = get_sublinks(website_url, content, info.found_urls)
     found_emails = get_emails(website_url, content, info.found_emails)
-    found_names = get_names(website_url, content, info.found_names, language)
-    found_phone_numbers = get_phone_numbers(website_url, content, info.found_phone_numbers, language)
-    found_addresses = get_addresses(website_url, content, info.found_addresses)
+    found_names = get_names(website_url, content, info.found_names, region)
+    found_phone_numbers = get_phone_numbers(website_url, content, info.found_phone_numbers, region)
+    found_addresses = get_addresses(website_url, content, info.found_addresses, region)
 
     return WebsiteInfo(found_links, found_emails, found_names, found_phone_numbers, found_addresses)
 
@@ -142,7 +142,7 @@ def get_emails(
     return new_emails
 
 def get_names(
-    website_url: str, content: BeautifulSoup, previous_names: dict[str, str], language: DataLanguage
+    website_url: str, content: BeautifulSoup, previous_names: dict[str, str], region: DataRegion
 ) -> dict[str, str]:
     """Parse the given HTML content for names.
 
@@ -150,7 +150,7 @@ def get_names(
         website_url (str): The website's URL
         content (BeautifulSoup): The HTML content to parse
         found_names (dict): Previously found names
-        language (DataLanguage): The primary language format for data to be found
+        region (DataRegion): The primary region for data to be found
 
     Returns:
         A dictionary of all the names found in the HTML content. Key: name, Value: URL where the name was found
@@ -161,11 +161,11 @@ def get_names(
         raise TypeError(f"Invalid content type, Expected type: BeautifulSoup, actual type: {type(content)}")
     if not isinstance(previous_names, dict):
         raise TypeError(f"Invalid previous_names type. Expected type: dict, actual type: {type(previous_names)}")
-    if not isinstance(language, DataLanguage):
-        raise TypeError(f"Invalid language type. Expected type: DataLanguage, actual type: {type(language)}")
+    if not isinstance(region, DataRegion):
+        raise TypeError(f"Invalid region type. Expected type: DataRegion, actual type: {type(region)}")
 
     new_names: dict[str, str] = previous_names
-    nlp: Language = _get_spacy_model(language)
+    nlp: Language = _get_spacy_model(region)
     name_regex: re.Pattern[str] = re.compile(Constants.NAME_REGEX)
     text_tags: ResultSet[Tag] = content.find_all(Constants.HTML_TEXT_TAGS)
 
@@ -197,7 +197,7 @@ def get_names(
     return new_names
 
 def get_phone_numbers(
-    website_url: str, content: BeautifulSoup, previous_phone_numbers: dict[str, str], language: DataLanguage
+    website_url: str, content: BeautifulSoup, previous_phone_numbers: dict[str, str], region: DataRegion
 ) -> dict[str, str]:
     """Parse the given HTML content for phone numbers.
 
@@ -205,7 +205,7 @@ def get_phone_numbers(
         website_url (str): The website's URL
         content (BeautifulSoup): The HTML content to parse
         found_phone_numbers (dict): Previously found phone numbers
-        language (DataLanguage): The primary language format for data to be found
+        region (DataRegion): The primary region for data to be found
 
     Returns:
         A dictionary of all the phone numbers found in the HTML content. Key: phone number, Value: URL where the number was found
@@ -216,8 +216,8 @@ def get_phone_numbers(
         raise TypeError(f"Invalid content type, Expected type: BeautifulSoup, actual type: {type(content)}")
     if not isinstance(previous_phone_numbers, dict):
         raise TypeError(f"Invalid previous_phone_numbers type. Expected type: dict, actual type: {type(previous_phone_numbers)}")
-    if not isinstance(language, DataLanguage):
-        raise TypeError(f"Invalid language type. Expected type: DataLanguage, actual type: {type(language)}")
+    if not isinstance(region, DataRegion):
+        raise TypeError(f"Invalid region type. Expected type: DataRegion, actual type: {type(region)}")
 
     new_phone_numbers: dict[str, str] = previous_phone_numbers
     html_content: str = content.decode()
@@ -226,7 +226,7 @@ def get_phone_numbers(
 
     # Iterate through the phone number matches
     for phone_number_match in phonenumbers.PhoneNumberMatcher(
-        html_content, language.value.upper()
+        html_content, region.value.upper()
     ):
         if not isinstance(phone_number_match, phonenumbers.PhoneNumberMatch):
             raise TypeError(f"Invalid phone_number_match type. Expected type: PhoneNumberMatch, actual type: {type(phone_number_match)}")
@@ -245,7 +245,7 @@ def get_phone_numbers(
     return new_phone_numbers
 
 def get_addresses(
-    website_url: str, content: BeautifulSoup, previous_addresses: dict[str, str]
+    website_url: str, content: BeautifulSoup, previous_addresses: dict[str, str], region: DataRegion
 ) -> dict[str, str]:
     """Parse the given HTML content for addresses.
 
@@ -253,9 +253,10 @@ def get_addresses(
         website_url (str): The website's URL
         content (BeautifulSoup): The HTML content to parse
         found_addresses (dict): Previously found addresses
+        region (DataRegion): The primary region for data to be found
 
     Returns:
-        A dictionary of all the names found in the HTML content. Key: name, Value: URL where the name was found
+        A dictionary of all the addresses found in the HTML content. Key: address, Value: URL where the address was found
     """
     if not validators.url(website_url):
         raise ValueError(f"Invalid URL: {website_url}")
@@ -263,6 +264,8 @@ def get_addresses(
         raise TypeError(f"Invalid content type, Expected type: BeautifulSoup, actual type: {type(content)}")
     if not isinstance(previous_addresses, dict):
         raise TypeError(f"Invalid previous_addresses type. Expected type: dict, actual type: {type(previous_addresses)}")
+    if not isinstance(region, DataRegion):
+        raise TypeError(f"Invalid region type. Expected type: DataRegion, actual type: {type(region)}")
 
     new_addresses: dict[str, str] = previous_addresses
     text_tags: ResultSet[Tag] = content.find_all(Constants.HTML_TEXT_TAGS)
@@ -276,7 +279,8 @@ def get_addresses(
         if not tag_text:
             continue
 
-        parsed_address = parse_address(tag_text)
+        parsed_address = parse_address(tag_text, country=region.value.upper())
+        
         # Skip empty results
         if not parsed_address:
             continue
@@ -325,19 +329,19 @@ def _is_file_url(url: str) -> bool:
     return False
 
 @lru_cache(maxsize=Constants.LRU_CACHE_MAXSIZE)
-def _get_spacy_model(language: DataLanguage) -> Language:
-    """Return the Spacy model based on the language.
+def _get_spacy_model(region: DataRegion) -> Language:
+    """Return the Spacy model based on the region.
 
     Arguments:
-        language (DataLanguage): The language of the website
+        region (DataRegion): The region of the website
 
     Returns:
         The Spacy model to be returned
     """
-    if not isinstance(language, DataLanguage):
-        raise TypeError(f"Invalid language type. Expected type: DataLanguage, actual type: {type(language)}")
+    if not isinstance(region, DataRegion):
+        raise TypeError(f"Invalid region type. Expected type: DataRegion, actual type: {type(region)}")
     
-    if language == DataLanguage.HUNGARIAN:
+    if region == DataRegion.HUNGARY:
         return spacy.load(Constants.SPACY_MODEL_HU)
     return spacy.load(Constants.SPACY_MODEL_EN)
 
