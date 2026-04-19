@@ -7,3 +7,4 @@ huspacy
 phonenumbers
 validators
 postal
+ddgs

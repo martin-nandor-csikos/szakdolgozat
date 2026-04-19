@@ -183,6 +183,9 @@ def _get_data_columns(info: WebsiteInfo) -> dict[str, list[str]]:
     Returns:
         dict[str, list[str]]: A dictionary containing data columns for CSV export. Key: column name, Value: list of data entries
     """
+    if not isinstance(info, WebsiteInfo):
+        raise TypeError(f"Invalid info type. Expected type: WebsiteInfo, actual type: {type(info)}")
+    
     data_columns = dict()
     if info.found_names:
         data_columns[CsvHeaderText.NAMES.value] = [f"{name} ({url})" for name, url in info.found_names.items()]
