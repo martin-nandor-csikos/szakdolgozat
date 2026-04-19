@@ -40,7 +40,8 @@ def _get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Parse a website for employee information and find their LinkedIn profiles based on the provided company name. " \
         "The program will parse for names, phone numbers, emails and addresses. " \
-        "LinkedIn profiles can also be fetched based on the provided company name and the maximum number of profiles to fetch." \
+        "LinkedIn profiles can also be fetched based on the provided company name and the maximum number of profiles to fetch. " \
+        "It's important to mention that the program may return less results than the given --profiles argument." \
     )
     parser.add_argument(
         '-l', '--link',

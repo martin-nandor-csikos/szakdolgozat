@@ -82,7 +82,6 @@ def _get_profile_results(search_query: str, profile_count: int, search_region: s
         # Filter to only LinkedIn profile URLs
         if 'linkedin' not in result_url or '/in/' not in result_url:
             skip_count += 1
-            print(f"SKIPPED: {skip_count}, {result_url}")
             continue
         
         # Get the person's name from the title

@@ -47,7 +47,7 @@ def get_html_content_phones():
 def get_html_content_addresses():
     return HTML_CONTENT_ADDRESSES
 
-# The following HTML content samples were created by GitHub Copilot and manually edited in some cases
+# The following HTML content samples were created by GitHub Copilot and manually edited by me
 HTML_CONTENT_BASIC = """
 <html>
     <body>

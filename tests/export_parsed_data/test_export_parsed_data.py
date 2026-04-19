@@ -13,7 +13,7 @@ from .mock_data import (
 )
 from unittest.mock import patch
 
-# The following unit test functions were created by GitHub Copilot and manually edited in some cases
+# The following unit test functions were created by GitHub Copilot and manually edited by me
 class ExportDataTest(unittest.TestCase):
     """Test class for the export_parsed_data module."""
 

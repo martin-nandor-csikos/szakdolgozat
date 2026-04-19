@@ -2,6 +2,7 @@ import unittest
 from bs4 import BeautifulSoup
 from unittest.mock import patch
 from .mock_data import *
+from globals.enums import DataRegion
 from website import (
     parse,
     parse_all,
@@ -13,7 +14,7 @@ from website import (
     get_addresses,
 )
 
-# The following unit test functions were created by GitHub Copilot and manually edited in some cases
+# The following unit test functions were created by GitHub Copilot and manually edited by me
 class WebsiteTest(unittest.TestCase):
     """Test class for the website module."""
 
@@ -22,7 +23,8 @@ class WebsiteTest(unittest.TestCase):
         mock_remote.return_value = get_mock_parse()
         website_url = "https://example.com"
         info = WebsiteInfo(set(), {}, {}, {}, {})
-        result = parse(website_url, info)
+        region = DataRegion.HUNGARY
+        result = parse(website_url, info, region)
 
         self.assertIsInstance(result, WebsiteInfo)
         self.assertIn("https://example.com/page1", result.found_urls)
@@ -31,25 +33,26 @@ class WebsiteTest(unittest.TestCase):
         self.assertEqual(result.found_emails["contact@example.com"], "https://example.com")
 
         with self.assertRaises(ValueError):
-            parse("Invalid URL", info)
+            parse("Invalid URL", info, region)
 
     @patch("builtins.input", return_value="n")
     @patch("website.website.parse")
     def test_parse_all(self, mock_parse, mock_input):
         mock_parse.side_effect = get_mock_parse_all()
 
-        result = parse_all("https://example.com", 1)
+        region = DataRegion.HUNGARY
+        result = parse_all("https://example.com", 1, region)
         self.assertIsInstance(result, WebsiteInfo)
         self.assertGreaterEqual(len(result.found_urls), 2)
         self.assertIn("https://example.com/page1", result.found_urls)
         self.assertIn("email1@example.com", result.found_emails)
 
         with self.assertRaises(ValueError):
-            parse_all("Invalid URL", 2)
+            parse_all("Invalid URL", 2, region)
         with self.assertRaises(TypeError):
-            parse_all("https://example.com", "not_an_int")
+            parse_all("https://example.com", "not_an_int", region)
         with self.assertRaises(ValueError):
-            parse_all("https://example.com", -1)
+            parse_all("https://example.com", -1, region)
 
     def test_get_sublinks(self):
         html_content = get_html_content_sublinks()
@@ -105,8 +108,9 @@ class WebsiteTest(unittest.TestCase):
         found_names_empty = {}
         found_names = {"John Doe": "https://example.com/page2"}
         content = BeautifulSoup(html_content, "html.parser")
+        region = DataRegion.UNITED_STATES
 
-        result = get_names("https://example.com", content, found_names_empty)
+        result = get_names("https://example.com", content, found_names_empty, region)
         self.assertIsInstance(result, dict)
         self.assertIn("John Doe", result)
         self.assertEqual(result["John Doe"], "https://example.com")
@@ -120,19 +124,20 @@ class WebsiteTest(unittest.TestCase):
         self.assertEqual(result["Conan O'Brien"], "https://example.com")
 
         with self.assertRaises(ValueError):
-            get_names("Invalid URL", content, found_names)
+            get_names("Invalid URL", content, found_names, region)
         with self.assertRaises(TypeError):
-            get_names("https://example.com", "not_bs4", found_names)
+            get_names("https://example.com", "not_bs4", found_names, region)
         with self.assertRaises(TypeError):
-            get_names("https://example.com", content, "not_a_dict")
+            get_names("https://example.com", content, "not_a_dict", region)
 
     def test_get_phone_numbers(self):
         html_content = get_html_content_phones()
         found_phone_numbers_empty = {}
         found_phone_numbers = {"+44 20 7777 7777": "https://example.uk/page2"}
         content = BeautifulSoup(html_content, "html.parser")
+        region = DataRegion.HUNGARY
 
-        result = get_phone_numbers("https://example.hu", content, found_phone_numbers_empty)
+        result = get_phone_numbers("https://example.hu", content, found_phone_numbers_empty, region)
         self.assertIsInstance(result, dict)
         self.assertIn("+36 30 123 4567", result)
         self.assertEqual(result["+36 30 123 4567"], "https://example.hu")
@@ -148,18 +153,19 @@ class WebsiteTest(unittest.TestCase):
         self.assertEqual(result["+44 20 1234 5678"], "https://example.hu")
 
         with self.assertRaises(ValueError):
-            get_phone_numbers("Invalid URL", content, found_phone_numbers)
+            get_phone_numbers("Invalid URL", content, found_phone_numbers, region)
         with self.assertRaises(TypeError):
-            get_phone_numbers("https://example.com", "not_bs4", found_phone_numbers)
+            get_phone_numbers("https://example.com", "not_bs4", found_phone_numbers, region)
         with self.assertRaises(TypeError):
-            get_phone_numbers("https://example.com", content, "not_a_dict")
+            get_phone_numbers("https://example.com", content, "not_a_dict", region)
 
     def test_get_addresses(self):
         html_content = get_html_content_addresses()
         found_addresses_empty = {}
         content = BeautifulSoup(html_content, "html.parser")
+        region = DataRegion.HUNGARY
 
-        result = get_addresses("https://example.com", content, found_addresses_empty)
+        result = get_addresses("https://example.com", content, found_addresses_empty, region)
         self.assertIsInstance(result, dict)
         found = any("123 main" in addr and "springfield" in addr for addr in result)
         self.assertTrue(found)
@@ -167,11 +173,11 @@ class WebsiteTest(unittest.TestCase):
         self.assertTrue(found)
 
         with self.assertRaises(ValueError):
-            get_addresses("Invalid URL", content, found_addresses_empty)
+            get_addresses("Invalid URL", content, found_addresses_empty, region)
         with self.assertRaises(TypeError):
-            get_addresses("https://example.com", "not_bs4", found_addresses_empty)
+            get_addresses("https://example.com", "not_bs4", found_addresses_empty, region)
         with self.assertRaises(TypeError):
-            get_addresses("https://example.com", content, "not_a_dict")
+            get_addresses("https://example.com", content, "not_a_dict", region)
 
 if __name__ == "__main__":
     unittest.main()
