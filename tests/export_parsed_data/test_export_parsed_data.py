@@ -3,8 +3,8 @@ import os
 import unittest
 from datetime import datetime
 from unittest.mock import patch
-from export_parsed_data import export_data
-from export_parsed_data.export_data import _get_export_confirmation, _get_export_path, _get_file_name, _export_to_csv, export_data
+from export_data.export import _export_webparser_data_to_csv, _get_export_confirmation, _get_export_path, _get_file_name
+from export_data.export import export_webparser_data
 from .mock_data import (
     get_mock_website_info_with_all_data,
     get_mock_website_info_with_names_only,
@@ -50,7 +50,7 @@ class ExportDataTest(unittest.TestCase):
 
     def test_get_export_path(self):
         """Test getting export path returns valid results folder path."""
-        result = _get_export_path()
+        result = _get_export_path("results")
         
         # Should be a string path ending in results
         self.assertIsInstance(result, str)
@@ -66,7 +66,7 @@ class ExportDataTest(unittest.TestCase):
         # Mock that the results folder doesn't exist so makedirs will be called
         with patch('os.path.exists', return_value=False):
             with self.assertRaises(OSError):
-                _get_export_path()
+                _get_export_path("results")
 
     def test_get_file_name_with_invalid_type_path(self):
         """Test get_file_name with invalid path type."""
@@ -132,7 +132,7 @@ class ExportDataTest(unittest.TestCase):
         website_info = get_mock_website_info_with_all_data()
         file_name = self._get_timestamped_filename("test_all_data")
 
-        _export_to_csv(website_info, self.csv_export_dir, file_name)
+        _export_webparser_data_to_csv(website_info, self.csv_export_dir, file_name)
 
         csv_path = os.path.join(self.csv_export_dir, f"{file_name}.csv")
         self.assertTrue(os.path.exists(csv_path))
@@ -150,7 +150,7 @@ class ExportDataTest(unittest.TestCase):
         website_info = get_mock_website_info_with_names_only()
         file_name = self._get_timestamped_filename("test_names_only")
 
-        _export_to_csv(website_info, self.csv_export_dir, file_name)
+        _export_webparser_data_to_csv(website_info, self.csv_export_dir, file_name)
 
         csv_path = os.path.join(self.csv_export_dir, f"{file_name}.csv")
         self.assertTrue(os.path.exists(csv_path))
@@ -166,7 +166,7 @@ class ExportDataTest(unittest.TestCase):
         website_info = get_mock_website_info_empty()
         file_name = self._get_timestamped_filename("test_empty_data")
 
-        _export_to_csv(website_info, self.csv_export_dir, file_name)
+        _export_webparser_data_to_csv(website_info, self.csv_export_dir, file_name)
 
         # File should not be created for empty data
         csv_path = os.path.join(self.csv_export_dir, f"{file_name}.csv")
@@ -177,7 +177,7 @@ class ExportDataTest(unittest.TestCase):
         website_info = get_mock_website_info_with_multiple_data_types()
         file_name = self._get_timestamped_filename("test_mixed_data")
 
-        _export_to_csv(website_info, self.csv_export_dir, file_name)
+        _export_webparser_data_to_csv(website_info, self.csv_export_dir, file_name)
 
         csv_path = os.path.join(self.csv_export_dir, f"{file_name}.csv")
         self.assertTrue(os.path.exists(csv_path))
@@ -198,7 +198,7 @@ class ExportDataTest(unittest.TestCase):
         website_info = get_mock_website_info_with_all_data()
         file_name = self._get_timestamped_filename("test_file_creation")
 
-        _export_to_csv(website_info, self.csv_export_dir, file_name)
+        _export_webparser_data_to_csv(website_info, self.csv_export_dir, file_name)
 
         csv_path = os.path.join(self.csv_export_dir, f"{file_name}.csv")
         self.assertTrue(os.path.exists(csv_path))
@@ -212,9 +212,9 @@ class ExportDataTest(unittest.TestCase):
 
         # Should not raise an exception, but should handle gracefully
         try:
-            _export_to_csv(website_info, invalid_path, file_name)
+            _export_webparser_data_to_csv(website_info, invalid_path, file_name)
         except Exception as e:
-            self.fail(f"_export_to_csv raised {type(e).__name__} unexpectedly!")
+            self.fail(f"_export_webparser_data_to_csv raised {type(e).__name__} unexpectedly!")
 
     @patch('csv.DictWriter.writerow', side_effect=Exception("Write error"))
     def test_export_to_csv_deletes_file_on_exception(self, mock_writerow):
@@ -222,7 +222,7 @@ class ExportDataTest(unittest.TestCase):
         website_info = get_mock_website_info_with_all_data()
         file_name = self._get_timestamped_filename("test_delete_on_exception")
 
-        _export_to_csv(website_info, self.csv_export_dir, file_name)
+        _export_webparser_data_to_csv(website_info, self.csv_export_dir, file_name)
 
         csv_path = os.path.join(self.csv_export_dir, f"{file_name}.csv")
         # File should be deleted if an exception occurred
@@ -230,15 +230,15 @@ class ExportDataTest(unittest.TestCase):
 
     @patch('builtins.open', side_effect=PermissionError("Permission denied"))
     def test_export_to_csv_handles_file_open_error(self, mock_open):
-        """Test that _export_to_csv handles errors when opening file."""
+        """Test that _export_webparser_data_to_csv handles errors when opening file."""
         website_info = get_mock_website_info_with_all_data()
         file_name = self._get_timestamped_filename("test_open_error")
 
         # Should not raise an exception
         try:
-            _export_to_csv(website_info, self.csv_export_dir, file_name)
+            _export_webparser_data_to_csv(website_info, self.csv_export_dir, file_name)
         except Exception as e:
-            self.fail(f"_export_to_csv raised {type(e).__name__} unexpectedly!")
+            self.fail(f"_export_webparser_data_to_csv raised {type(e).__name__} unexpectedly!")
 
         csv_path = os.path.join(self.csv_export_dir, f"{file_name}.csv")
         # File should not exist if open failed
@@ -250,41 +250,41 @@ class ExportDataTest(unittest.TestCase):
         website_info = get_mock_website_info_with_all_data()
         file_name = self._get_timestamped_filename("test_delete_on_header_error")
 
-        _export_to_csv(website_info, self.csv_export_dir, file_name)
+        _export_webparser_data_to_csv(website_info, self.csv_export_dir, file_name)
 
         csv_path = os.path.join(self.csv_export_dir, f"{file_name}.csv")
         # File should be deleted if an exception occurred
         self.assertFalse(os.path.exists(csv_path))
 
-    @patch('export_parsed_data.export_data._get_export_confirmation', return_value=True)
-    @patch('export_parsed_data.export_data._get_export_path')
-    @patch('export_parsed_data.export_data._get_file_name', return_value=None)
+    @patch('export_data.export._get_export_confirmation', return_value=True)
+    @patch('export_data.export._get_export_path')
+    @patch('export_data.export._get_file_name', return_value=None)
     def test_export_data_user_cancels_overwrite(self, mock_get_file_name, mock_get_export_path, mock_get_confirmation):
         """Test that export_data doesn't export when user cancels due to overwrite prompt."""
         mock_get_export_path.return_value = self.csv_export_dir
         website_info = get_mock_website_info_with_all_data()
         
-        with patch('export_parsed_data.export_data._export_to_csv') as mock_export_to_csv:
-            export_data(website_info)
-            # _export_to_csv should not be called if file_name is None
+        with patch('export_data.export._export_webparser_data_to_csv') as mock_export_to_csv:
+            export_webparser_data(website_info)
+            # _export_webparser_data_to_csv should not be called if file_name is None
             mock_export_to_csv.assert_not_called()
     
-    @patch('export_parsed_data.export_data._get_export_confirmation', return_value=True)
-    @patch('export_parsed_data.export_data._get_export_path')
-    @patch('export_parsed_data.export_data._get_file_name', return_value='test_file')
+    @patch('export_data.export._get_export_confirmation', return_value=True)
+    @patch('export_data.export._get_export_path')
+    @patch('export_data.export._get_file_name', return_value='test_file')
     def test_export_data_user_confirms_export(self, mock_get_file_name, mock_get_export_path, mock_get_confirmation):
         """Test that export_data exports when user provides valid file name."""
         mock_get_export_path.return_value = self.csv_export_dir
         website_info = get_mock_website_info_with_all_data()
         
-        with patch('export_parsed_data.export_data._export_to_csv') as mock_export_to_csv:
-            export_data(website_info)
-            # _export_to_csv should be called with correct parameters
+        with patch('export_data.export._export_webparser_data_to_csv') as mock_export_to_csv:
+            export_webparser_data(website_info)
+            # _export_webparser_data_to_csv should be called with correct parameters
             mock_export_to_csv.assert_called_once_with(website_info, self.csv_export_dir, 'test_file')
 
     @patch('os.remove', side_effect=Exception("Cannot delete file"))
-    def test_export_to_csv_handles_deletion_error(self, mock_remove):
-        """Test that _export_to_csv handles errors when deleting incomplete file."""
+    def test_export_webparser_data_to_csv_handles_deletion_error(self, mock_remove):
+        """Test that _export_webparser_data_to_csv handles errors when deleting incomplete file."""
         website_info = get_mock_website_info_with_all_data()
         file_name = self._get_timestamped_filename("test_deletion_error")
 
@@ -292,13 +292,13 @@ class ExportDataTest(unittest.TestCase):
         with patch('csv.DictWriter.writerow', side_effect=Exception("Write error")):
             # Should not raise an exception even if deletion fails
             try:
-                _export_to_csv(website_info, self.csv_export_dir, file_name)
+                _export_webparser_data_to_csv(website_info, self.csv_export_dir, file_name)
             except Exception as e:
-                self.fail(f"_export_to_csv raised {type(e).__name__} unexpectedly!")
+                self.fail(f"_export_webparser_data_to_csv raised {type(e).__name__} unexpectedly!")
 
-    @patch('export_parsed_data.export_data._get_export_confirmation', return_value=True)
-    @patch('export_parsed_data.export_data._get_export_path')
-    @patch('export_parsed_data.export_data._get_file_name')
+    @patch('export_data.export._get_export_confirmation', return_value=True)
+    @patch('export_data.export._get_export_path')
+    @patch('export_data.export._get_file_name')
     def test_export_data_full_flow(self, mock_file_name, mock_path, mock_confirmation):
         """Test the full export_data flow."""
         file_name = self._get_timestamped_filename("test_export")
@@ -307,7 +307,7 @@ class ExportDataTest(unittest.TestCase):
         website_info = get_mock_website_info_with_all_data()
         initial_file_count = len([f for f in os.listdir(self.csv_export_dir) if f.endswith('.csv')])
 
-        export_data(website_info)
+        export_webparser_data(website_info)
 
         csv_path = os.path.join(self.csv_export_dir, f"{file_name}.csv")
         self.assertTrue(os.path.exists(csv_path))

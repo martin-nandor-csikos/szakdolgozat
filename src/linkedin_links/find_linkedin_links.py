@@ -2,8 +2,6 @@ from globals.enums import DataRegion
 from linkedin_links import constants as Constants
 from ddgs import DDGS
 from rich.console import Console
-import threading
-import time
 
 console = Console(log_path=False)
 
@@ -22,11 +20,9 @@ def fetch_links(company: str, profile_count: int, region: DataRegion) -> dict[st
     if not isinstance(region, DataRegion):
         raise TypeError(f"Invalid region type. Expected type: DataRegion, actual type: {type(region)}")
     
-    profiles = dict()
+    console.log(f"Searching for LinkedIn profile links")
 
-    stop_event = threading.Event()
-    heartbeat_thread = threading.Thread(target=_result_count_heartbeat, args=(profiles, stop_event), daemon=True)
-    heartbeat_thread.start()
+    profiles = dict()
 
     match region.value.lower():
         case DataRegion.HUNGARY.value:
@@ -36,20 +32,16 @@ def fetch_links(company: str, profile_count: int, region: DataRegion) -> dict[st
         case _:
             search_region = Constants.UK_REGION
 
-    try:
-        if region == DataRegion.HUNGARY:
-            search_query = f"\"{company}\" {Constants.LINKEDIN_SITE_HU} {Constants.EXCLUDED_PAGES}"
-        else:
-            search_query = f"\"{company}\" {Constants.LINKEDIN_SITE_ALL} {Constants.EXCLUDED_PAGES}"
-        profiles = _get_profile_results(search_query, profile_count, search_region)
-    finally:
-        stop_event.set()
-        heartbeat_thread.join(timeout=1)
+    if region == DataRegion.HUNGARY:
+        search_query = f"\"{company}\" {Constants.LINKEDIN_SITE_HU} {Constants.EXCLUDED_PAGES}"
+    else:
+        search_query = f"\"{company}\" {Constants.LINKEDIN_SITE_ALL} {Constants.EXCLUDED_PAGES}"
+    profiles = _get_profile_results(search_query, profile_count, search_region)
 
+    console.log(f"[green]Searching completed[/green]")
     if len(profiles) < profile_count:
         console.print(f"[yellow]Only {len(profiles)} profile links were found.[/yellow]")
 
-    print(profiles)
     return profiles
 
 def _get_profile_results(search_query: str, profile_count: int, search_region: str) -> dict[str, str]:
@@ -101,14 +93,3 @@ def _get_profile_results(search_query: str, profile_count: int, search_region: s
             break
 
     return profiles
-
-def _result_count_heartbeat(profiles: dict, stop_event: threading.Event):
-    """Print the count of found results every 10 seconds."""
-    if not isinstance(profiles, dict):
-        raise TypeError(f"Invalid profiles type. Expected type: dict, actual type: {type(profiles)}")
-    if not isinstance(stop_event, threading.Event):
-        raise TypeError(f"Invalid stop_event type. Expected type: threading.Event, actual type: {type(stop_event)}")
-    
-    while not stop_event.is_set():
-        time.sleep(Constants.HEARTBEAT_INTERVAL_SECONDS)
-        console.print(f"{len(profiles)} profile links found so far...")

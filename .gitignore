@@ -3,3 +3,5 @@
 /.venv
 .env
 **/results/
+**/results_webparser/
+**/results_profiles/

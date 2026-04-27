@@ -1,5 +1,5 @@
 from globals.enums import DataRegion
-from export_parsed_data import export_data
+from export_data import export_webparser_data, export_profiles
 from linkedin_links import fetch_links
 from website import WebsiteInfo, parse_all
 import argparse
@@ -19,10 +19,12 @@ def main() -> None:
 
     # Export the parsed data to a CSV file
     if website_info.has_data():
-        export_data(website_info)
+        export_webparser_data(website_info)
 
     if args.profiles > 0:
         profile_links = fetch_links(args.company, args.profiles, args.region)
+        if profile_links:
+            export_profiles(profile_links)
 
 def _get_args() -> argparse.Namespace:
     """Get the input arguments from the user using argparse.
