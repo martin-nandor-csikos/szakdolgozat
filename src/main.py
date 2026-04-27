@@ -31,10 +31,12 @@ def _get_args() -> argparse.Namespace:
     
     Required arguments:
         --link: The website URL to parse
+        --region: The primary region for data to be found. Supported regions: United States (us), Britain (gb), Hungarian (hu)
     
     Optional arguments:
         --company: Company name for LinkedIn search
         --sublinks: Maximum number of subpages to visit (default: 0)
+        --profiles: Maximum number of LinkedIn profiles to fetch (default: 0)
 
     Returns:
         argparse.Namespace: The parsed arguments
