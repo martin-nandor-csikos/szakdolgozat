@@ -59,7 +59,7 @@ def get_sublinks(
     if not isinstance(previous_urls, set):
         raise TypeError(f"Invalid previous_urls type. Expected type: set, actual type: {type(previous_urls)}")
 
-    new_urls: set[str] = previous_urls
+    new_urls: set[str] = set(previous_urls)
     hostname: str | None = urlparse.urlparse(website_url).hostname
     website_url_stripped: str = _get_stripped_link(website_url)
 
@@ -118,7 +118,7 @@ def get_emails(
     if not isinstance(previous_emails, dict):
         raise TypeError(f"Invalid previous_emails type. Expected type: dict, actual type: {type(previous_emails)}")
 
-    new_emails: dict[str, str] = previous_emails
+    new_emails: dict[str, str] = dict(previous_emails)
     text_tags: ResultSet[Tag] = content.find_all(Constants.HTML_TEXT_TAGS)
 
     for tag in text_tags:
@@ -164,7 +164,7 @@ def get_names(
     if not isinstance(region, DataRegion):
         raise TypeError(f"Invalid region type. Expected type: DataRegion, actual type: {type(region)}")
 
-    new_names: dict[str, str] = previous_names
+    new_names: dict[str, str] = dict(previous_names)
     nlp: Language = _get_spacy_model(region)
     name_regex: re.Pattern[str] = re.compile(Constants.NAME_REGEX)
     text_tags: ResultSet[Tag] = content.find_all(Constants.HTML_TEXT_TAGS)
@@ -219,7 +219,7 @@ def get_phone_numbers(
     if not isinstance(region, DataRegion):
         raise TypeError(f"Invalid region type. Expected type: DataRegion, actual type: {type(region)}")
 
-    new_phone_numbers: dict[str, str] = previous_phone_numbers
+    new_phone_numbers: dict[str, str] = dict(previous_phone_numbers)
     html_content: str = content.decode()
 
     website_url_stripped: str = _get_stripped_link(website_url)
@@ -267,7 +267,7 @@ def get_addresses(
     if not isinstance(region, DataRegion):
         raise TypeError(f"Invalid region type. Expected type: DataRegion, actual type: {type(region)}")
 
-    new_addresses: dict[str, str] = previous_addresses
+    new_addresses: dict[str, str] = dict(previous_addresses)
     text_tags: ResultSet[Tag] = content.find_all(Constants.HTML_TEXT_TAGS)
 
     # Get all the relevant tags in the HTML content
