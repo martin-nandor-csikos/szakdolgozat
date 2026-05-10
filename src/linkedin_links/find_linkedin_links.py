@@ -65,7 +65,6 @@ def _get_profile_results(search_query: str, profile_count: int, search_region: s
     ddgs = DDGS()
     results = ddgs.text(search_query, max_results=profile_count*2, region=search_region)
     profiles = dict()
-    skip_count = 0
 
     for result in results:
         result_url = result['href']
@@ -73,7 +72,6 @@ def _get_profile_results(search_query: str, profile_count: int, search_region: s
         
         # Filter to only LinkedIn profile URLs
         if 'linkedin' not in result_url or '/in/' not in result_url:
-            skip_count += 1
             continue
         
         # Get the person's name from the title

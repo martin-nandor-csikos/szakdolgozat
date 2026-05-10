@@ -255,10 +255,3 @@ def _get_data_columns(info: WebsiteInfo) -> dict[str, list[str]]:
         data_columns[WebparserCsvHeaderText.ADDRESSES.value] = [f"{address} ({url})" for address, url in info.found_addresses.items()]
 
     return data_columns
-
-def _remove_csv_file(csv_file: str, full_path: str):
-    if csv_file is not None and os.path.exists(full_path):
-        try:
-            os.remove(full_path)
-        except Exception as delete_error:
-            console.print(f"[red]Failed to delete incomplete CSV file: {delete_error}[/red]")
