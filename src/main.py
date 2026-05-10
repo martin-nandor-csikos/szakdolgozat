@@ -21,7 +21,7 @@ def main() -> None:
     if website_info.has_data():
         export_webparser_data(website_info)
 
-    if args.profiles > 0:
+    if args.profiles and args.company:
         profile_links = fetch_links(args.company, args.profiles, args.region)
         if profile_links:
             export_profiles(profile_links)
